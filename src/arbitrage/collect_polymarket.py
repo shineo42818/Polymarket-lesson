@@ -28,7 +28,7 @@ MARKET_CONFIG = {
 }
 
 # Test mode: set to True to run quickly with 1 coin, 1 day
-TEST_MODE = False
+TEST_MODE = True
 TEST_COINS = ["btc"]
 TEST_DAYS = 1
 
@@ -86,7 +86,9 @@ def fetch_batch(coin, timestamps):
                 "timestamp": datetime.fromtimestamp(ts, tz=timezone.utc),
                 "slug": slug,
                 "yes_price": float(price_list[0]),
-                "clob_token_id": token_ids[0] if token_ids else None
+                "no_price": float(price_list[1]) if len(price_list) > 1 else None,
+                "clob_token_id_yes": token_ids[0] if len(token_ids) > 0 else None,
+                "clob_token_id_no": token_ids[1] if len(token_ids) > 1 else None
             })
     
     return results
