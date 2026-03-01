@@ -16,6 +16,15 @@ MARKET_INTERVALS = {"5m": 300, "15m": 900}
 POLL_INTERVAL_SECONDS = 10    # how often to fetch prices
 MIN_PROFITABLE_GAP = 0.06     # minimum gap after fees to flag as opportunity
 
+# ============================================================
+# PILOT MODE
+# ============================================================
+# PILOT_MODE = True  → run for PILOT_DURATION_HOURS then print summary and stop
+# PILOT_MODE = False → run indefinitely (production / 7-day collection mode)
+
+PILOT_MODE           = True   # <-- flip this switch
+PILOT_DURATION_HOURS = 3      # hours to run when PILOT_MODE is True
+
 GAP_LOG_FILE = "data/gap_log.csv"
 CSV_COLUMNS = [
     "recorded_at", "coin", "market_type", "slug",
@@ -190,11 +199,15 @@ def save_observations(observations):
 # STEP 5: LIVE DASHBOARD
 # ============================================================
 
-def print_dashboard(observations, cycle):
+def print_dashboard(observations, cycle, pilot_seconds_left=None):
     """Print a clean status table to the terminal."""
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     print(f"\n{'=' * 65}")
     print(f"  GAP MONITOR | Cycle {cycle} | {now_str}")
+    if pilot_seconds_left is not None:
+        h, rem = divmod(int(pilot_seconds_left), 3600)
+        m, s   = divmod(rem, 60)
+        print(f"  PILOT MODE  | Time remaining: {h:02d}:{m:02d}:{s:02d}")
     print(f"{'=' * 65}")
     print(f"  {'MARKET':<22} {'YES':>6} {'NO':>6} {'GAP':>7} {'LEFT':>6} {'OPP':>6}")
     print(f"  {'-' * 58}")
@@ -210,19 +223,77 @@ def print_dashboard(observations, cycle):
     print(f"  Logging to: {GAP_LOG_FILE}")
 
 
+def print_pilot_summary():
+    """Print an end-of-run summary after the pilot period completes."""
+    print(f"\n{'=' * 65}")
+    print(f"  PILOT MODE COMPLETE - {PILOT_DURATION_HOURS}-HOUR SUMMARY")
+    print(f"{'=' * 65}")
+
+    if not os.path.exists(GAP_LOG_FILE):
+        print("  No data collected.")
+        return
+
+    df = pd.read_csv(GAP_LOG_FILE)
+    if df.empty:
+        print("  No data collected.")
+        return
+
+    total_obs   = len(df)
+    total_opps  = int(df["opportunity"].sum())
+    opp_rate    = total_opps / total_obs * 100 if total_obs else 0
+    max_gap     = df["gap"].max()
+    max_gap_row = df.loc[df["gap"].idxmax()]
+
+    print(f"\n  OVERALL")
+    print(f"  {'Total observations:':<30} {total_obs:,}")
+    print(f"  {'Opportunities found (gap>=0.06):':<30} {total_opps:,}  ({opp_rate:.1f}% of cycles)")
+    print(f"  {'Largest gap seen:':<30} {max_gap:.4f}  ({max_gap_row['coin'].upper()} {max_gap_row['market_type']} at {max_gap_row['recorded_at'][:19]})")
+    print(f"  {'Average gap:':<30} {df['gap'].mean():.4f}")
+
+    print(f"\n  BY COIN")
+    for coin in ["btc", "eth", "sol"]:
+        sub = df[df["coin"] == coin]
+        if sub.empty:
+            continue
+        opps = int(sub["opportunity"].sum())
+        print(f"  {coin.upper():<6}  avg gap={sub['gap'].mean():.4f}  "
+              f"max gap={sub['gap'].max():.4f}  opportunities={opps}")
+
+    print(f"\n  BY MARKET TYPE")
+    for mtype in ["5m", "15m"]:
+        sub = df[df["market_type"] == mtype]
+        if sub.empty:
+            continue
+        opps = int(sub["opportunity"].sum())
+        print(f"  {mtype:<6}  avg gap={sub['gap'].mean():.4f}  "
+              f"max gap={sub['gap'].max():.4f}  opportunities={opps}")
+
+    if total_opps > 0:
+        print(f"\n  *** GAPS DETECTED - arbitrage may be real. Run 7-day collection. ***")
+    else:
+        print(f"\n  No profitable gaps found in {PILOT_DURATION_HOURS}h. Consider wider time window.")
+
+    print(f"\n  Data saved to: {GAP_LOG_FILE}")
+    print(f"{'=' * 65}")
+
+
 # ============================================================
 # STEP 6: MAIN LOOP
 # ============================================================
 
 def run():
+    mode_label = f"PILOT ({PILOT_DURATION_HOURS}h)" if PILOT_MODE else "PRODUCTION (continuous)"
     print("=" * 65)
     print("  POLYMARKET GAP MONITOR")
+    print(f"  Mode: {mode_label}")
     print("  Monitoring BTC/ETH/SOL updown markets every 10 seconds")
-    print("  Press Ctrl+C to stop")
+    print("  Press Ctrl+C to stop early")
     print("=" * 65)
 
     init_log_file()
-    cycle = 0
+    cycle      = 0
+    start_time = time.time()
+    pilot_end  = start_time + PILOT_DURATION_HOURS * 3600 if PILOT_MODE else None
 
     while True:
         try:
@@ -237,15 +308,26 @@ def run():
             # Save to CSV
             save_observations(observations)
 
+            # Calculate pilot time remaining (None when not in pilot mode)
+            seconds_left = max(0, pilot_end - time.time()) if PILOT_MODE else None
+
             # Print dashboard
-            print_dashboard(observations, cycle)
+            print_dashboard(observations, cycle, pilot_seconds_left=seconds_left)
+
+            # Check if pilot duration has elapsed
+            if PILOT_MODE and time.time() >= pilot_end:
+                print_pilot_summary()
+                break
 
             # Wait before next cycle
             time.sleep(POLL_INTERVAL_SECONDS)
 
         except KeyboardInterrupt:
             print(f"\n\nStopped by user after {cycle} cycles.")
-            print(f"Data saved to: {GAP_LOG_FILE}")
+            if PILOT_MODE:
+                print_pilot_summary()
+            else:
+                print(f"Data saved to: {GAP_LOG_FILE}")
             break
         except Exception as e:
             print(f"[Error in cycle {cycle}]: {e}")

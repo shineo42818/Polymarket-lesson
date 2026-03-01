@@ -14,6 +14,15 @@ KNOWN_WHALES_FILE = "data/known_whales.csv"
 
 POLL_INTERVAL_SECONDS = 30  # how often to check whale activity
 
+# ============================================================
+# PILOT MODE
+# ============================================================
+# PILOT_MODE = True  → run for PILOT_DURATION_HOURS then print summary and stop
+# PILOT_MODE = False → run indefinitely (production / 7-day collection mode)
+
+PILOT_MODE           = True   # <-- flip this switch
+PILOT_DURATION_HOURS = 3      # hours to run when PILOT_MODE is True
+
 # Keywords that identify crypto updown markets
 UPDOWN_KEYWORDS = ["btc-updown", "eth-updown", "sol-updown"]
 
@@ -130,7 +139,7 @@ def find_gap_at_time(trade_timestamp, coin, market_type):
         closest_row = subset.loc[closest_idx]
         seconds_diff = int(time_diffs[closest_idx].total_seconds())
 
-        # Only use if within 5 minutes (300 seconds) — otherwise too far apart
+        # Only use if within 5 minutes (300 seconds) - otherwise too far apart
         if seconds_diff > 300:
             return None, seconds_diff
 
@@ -179,15 +188,76 @@ def init_log_file():
         print(f"  Created {WHALE_LOG_FILE}")
 
 
+def print_pilot_summary():
+    """Print an end-of-run summary after the pilot period completes."""
+    print(f"\n{'=' * 65}")
+    print(f"  PILOT MODE COMPLETE - {PILOT_DURATION_HOURS}-HOUR SUMMARY")
+    print(f"{'=' * 65}")
+
+    if not os.path.exists(WHALE_LOG_FILE):
+        print("  No data collected.")
+        return
+
+    df = pd.read_csv(WHALE_LOG_FILE)
+    if df.empty:
+        print("  No data collected.")
+        return
+
+    total_trades    = len(df)
+    both_sides      = int(df["both_sides_flag"].sum())
+    both_rate       = both_sides / total_trades * 100 if total_trades else 0
+    unique_whales   = df["wallet_label"].nunique()
+    total_usd       = df["size_usd"].sum()
+
+    print(f"\n  OVERALL")
+    print(f"  {'Total trades logged:':<35} {total_trades:,}")
+    print(f"  {'Both-sides (arbitrage signal):':<35} {both_sides:,}  ({both_rate:.1f}% of trades)")
+    print(f"  {'Unique active whales:':<35} {unique_whales}")
+    print(f"  {'Total USDC volume observed:':<35} ${total_usd:,.2f}")
+
+    print(f"\n  BY COIN")
+    for coin in ["btc", "eth", "sol"]:
+        sub = df[df["coin"] == coin]
+        if sub.empty:
+            continue
+        bs  = int(sub["both_sides_flag"].sum())
+        print(f"  {coin.upper():<6}  trades={len(sub):>4}  both-sides={bs:>3}  "
+              f"avg_size=${sub['size_usd'].mean():>8.2f}")
+
+    print(f"\n  MOST ACTIVE WHALES")
+    whale_summary = (
+        df.groupby("wallet_label")
+          .agg(trades=("slug", "count"),
+               both_sides=("both_sides_flag", "sum"),
+               total_usd=("size_usd", "sum"))
+          .sort_values("trades", ascending=False)
+          .head(5)
+    )
+    for label, row in whale_summary.iterrows():
+        short = label[:24]
+        print(f"  {short:<26}  trades={int(row['trades']):>4}  "
+              f"both-sides={int(row['both_sides']):>3}  ${row['total_usd']:>10,.2f}")
+
+    if both_sides > 0:
+        print(f"\n  *** BOTH-SIDES TRADES FOUND - whales ARE doing arbitrage. ***")
+    else:
+        print(f"\n  No both-sides trades detected. Whales may be directional only.")
+
+    print(f"\n  Data saved to: {WHALE_LOG_FILE}")
+    print(f"{'=' * 65}")
+
+
 # ============================================================
 # MAIN LOOP
 # ============================================================
 
 def run():
+    mode_label = f"PILOT ({PILOT_DURATION_HOURS}h)" if PILOT_MODE else "PRODUCTION (continuous)"
     print("=" * 65)
     print("  POLYMARKET WHALE MONITOR")
+    print(f"  Mode: {mode_label}")
     print("  Monitoring known whale wallets every 30 seconds")
-    print("  Press Ctrl+C to stop")
+    print("  Press Ctrl+C to stop early")
     print("=" * 65)
 
     init_log_file()
@@ -198,7 +268,9 @@ def run():
         return
 
     print(f"  Loaded {len(whales)} whale wallets")
-    cycle = 0
+    cycle      = 0
+    start_time = time.time()
+    pilot_end  = start_time + PILOT_DURATION_HOURS * 3600 if PILOT_MODE else None
 
     while True:
         try:
@@ -286,15 +358,32 @@ def run():
                     if ts_values:
                         last_seen_timestamp[wallet] = max(ts_values)
 
+            # Build status line with optional time remaining
+            if PILOT_MODE:
+                secs_left = max(0, pilot_end - time.time())
+                h, rem = divmod(int(secs_left), 3600)
+                m, s   = divmod(rem, 60)
+                time_str = f"  |  Pilot ends in {h:02d}:{m:02d}:{s:02d}"
+            else:
+                time_str = ""
+
             print(f"[Cycle {cycle} | {now.strftime('%H:%M:%S UTC')}] "
                   f"New trades: {new_trades_total} | "
-                  f"Next check in {POLL_INTERVAL_SECONDS}s")
+                  f"Next check in {POLL_INTERVAL_SECONDS}s{time_str}")
+
+            # Check if pilot duration has elapsed
+            if PILOT_MODE and time.time() >= pilot_end:
+                print_pilot_summary()
+                break
 
             time.sleep(POLL_INTERVAL_SECONDS)
 
         except KeyboardInterrupt:
             print(f"\n\nStopped by user after {cycle} cycles.")
-            print(f"Data saved to: {WHALE_LOG_FILE}")
+            if PILOT_MODE:
+                print_pilot_summary()
+            else:
+                print(f"Data saved to: {WHALE_LOG_FILE}")
             break
         except Exception as e:
             print(f"[Error in cycle {cycle}]: {e}")
