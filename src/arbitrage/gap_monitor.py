@@ -232,11 +232,10 @@ def _handle_ws_event(event):
     else:
         return  # unknown event type — skip logging
 
-    # Event-driven logging: compute and save gaps immediately after every
-    # book snapshot or price_change update.  This gives sub-second CSV
-    # resolution so find_gap_at_time() in whale_monitor can match gaps
-    # accurately to the exact moment a whale trade was made.
-    observations = calculate_current_gaps()
+    # Event-driven logging: compute gaps immediately after every price update.
+    # Only save rows where a profitable opportunity exists (gap >= MIN_PROFITABLE_GAP).
+    # This keeps gap_log.csv lean — no noise from the many non-profitable ticks.
+    observations = [o for o in calculate_current_gaps() if o["opportunity"]]
     if observations:
         with log_lock:
             save_observations(observations)
@@ -394,19 +393,16 @@ def print_pilot_summary():
         print("  No data collected.")
         return
 
-    total_obs   = len(df)
-    total_opps  = int(df["opportunity"].sum())
-    opp_rate    = total_opps / total_obs * 100 if total_obs else 0
+    total_opps  = len(df)   # every row in CSV is already an opportunity
     max_gap     = df["gap"].max()
     max_gap_row = df.loc[df["gap"].idxmax()]
 
     print(f"\n  OVERALL")
-    print(f"  {'Total observations:':<30} {total_obs:,}")
-    print(f"  {'Opportunities found (gap>=0.06):':<30} {total_opps:,}  ({opp_rate:.1f}% of cycles)")
+    print(f"  {'Opportunity snapshots logged:':<30} {total_opps:,}")
     print(f"  {'Largest gap seen:':<30} {max_gap:.4f}  "
           f"({max_gap_row['coin'].upper()} {max_gap_row['market_type']} "
           f"at {max_gap_row['recorded_at'][:19]})")
-    print(f"  {'Average gap:':<30} {df['gap'].mean():.4f}")
+    print(f"  {'Average gap (opps only):':<30} {df['gap'].mean():.4f}")
 
     print(f"\n  BY COIN")
     for coin in ["btc", "eth", "sol"]:
@@ -470,13 +466,17 @@ def run():
             time.sleep(1)
             now = time.time()
 
-            # Check if a market window has rotated (every 5m or 15m boundary)
-            # If tokens changed, close the WebSocket — run_forever(reconnect=5)
-            # will reopen it and on_ws_open will re-subscribe with fresh token IDs
+            # Check if a market window has rotated (every 5m or 15m boundary).
+            # IMPORTANT: ws_app.close() is a clean close — run_forever(reconnect=5)
+            # does NOT auto-reconnect after a clean close, only after errors.
+            # So we must explicitly call start_websocket() to get a fresh connection.
             if refresh_cache_if_needed():
                 print("  [WS] Market window rotated — reconnecting with new tokens")
-                ws_app.close()
-                time.sleep(2)   # allow reconnect + new book snapshots to arrive
+                if ws_app:
+                    ws_app.close()
+                prices.clear()    # drop stale prices for old token IDs
+                time.sleep(2)     # allow close to complete
+                start_websocket() # fresh WebSocketApp + thread with new token IDs
 
             # Refresh dashboard every LOG_INTERVAL_SECONDS.
             # CSV is already written event-driven in _handle_ws_event()
