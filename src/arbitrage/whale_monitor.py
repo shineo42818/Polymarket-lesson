@@ -41,6 +41,7 @@ FIELD_PRICE     = "price"       # confirmed: float, e.g. 0.43
 CSV_COLUMNS = [
     "recorded_at", "wallet", "wallet_label", "coin", "market_type",
     "slug", "side", "size_usd", "price", "trade_timestamp",
+    "seconds_into_market",
     "gap_at_time", "gap_seconds_diff", "both_sides_flag"
 ]
 
@@ -324,20 +325,28 @@ def run():
                     # Detect both-sides trading
                     both_sides = detect_both_sides(wallet, slug, side)
 
+                    # Compute how far into the market window this trade occurred
+                    try:
+                        market_open_ts      = int(slug.split("-")[-1])
+                        seconds_into_market = int(trade_ts) - market_open_ts
+                    except Exception:
+                        seconds_into_market = None
+
                     new_rows.append({
-                        "recorded_at":      now.isoformat(),
-                        "wallet":           wallet,
-                        "wallet_label":     label,
-                        "coin":             coin,
-                        "market_type":      mtype,
-                        "slug":             slug,
-                        "side":             side,
-                        "size_usd":         size_usd,
-                        "price":            price,
-                        "trade_timestamp":  trade_ts,
-                        "gap_at_time":      gap_val,
-                        "gap_seconds_diff": gap_diff,
-                        "both_sides_flag":  both_sides
+                        "recorded_at":          now.isoformat(),
+                        "wallet":               wallet,
+                        "wallet_label":         label,
+                        "coin":                 coin,
+                        "market_type":          mtype,
+                        "slug":                 slug,
+                        "side":                 side,
+                        "size_usd":             size_usd,
+                        "price":                price,
+                        "trade_timestamp":      trade_ts,
+                        "seconds_into_market":  seconds_into_market,
+                        "gap_at_time":          gap_val,
+                        "gap_seconds_diff":     gap_diff,
+                        "both_sides_flag":      both_sides
                     })
 
                 # Save new trades to CSV

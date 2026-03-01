@@ -36,7 +36,7 @@ WS_URL       = "wss://ws-subscriptions-clob.polymarket.com/ws/market"
 CSV_COLUMNS = [
     "recorded_at", "coin", "market_type", "slug",
     "market_closes", "seconds_left",
-    "yes_price", "no_price", "gap",
+    "yes_price", "no_price", "gap", "gap_bid",
     "gap_duration_ms", "arb_size_usd",
     "opportunity"
 ]
@@ -327,7 +327,21 @@ def calculate_current_gaps():
             if yes_ask is None or no_ask is None:
                 continue
 
+            # Sanity filter: near market close, market makers pull liquidity.
+            # Stale ask orders for the losing side can sit at 0.990, causing
+            # both asks to show ~0.990 → gap = -0.98 (garbage data).
+            if yes_ask > 0.90 and no_ask > 0.90:
+                continue
+
             gap          = round(1.0 - yes_ask - no_ask, 4)
+
+            # BID-based gap: whales use limit orders filled at bid prices.
+            # gap_bid can be positive even when gap_ask is negative.
+            yes_bid      = yes_data.get("bid")
+            no_bid       = no_data.get("bid")
+            gap_bid      = (round(1.0 - yes_bid - no_bid, 4)
+                            if yes_bid is not None and no_bid is not None
+                            else None)
             closes_dt    = datetime.fromtimestamp(cached["closes"], tz=timezone.utc)
             seconds_left = int((closes_dt - now).total_seconds())
 
@@ -341,6 +355,11 @@ def calculate_current_gaps():
                 else None
             )
 
+            opportunity = (
+                gap >= MIN_PROFITABLE_GAP or
+                (gap_bid is not None and gap_bid >= MIN_PROFITABLE_GAP)
+            )
+
             observations.append({
                 "recorded_at":    now.isoformat(),
                 "coin":           coin,
@@ -351,9 +370,10 @@ def calculate_current_gaps():
                 "yes_price":      yes_ask,        # column name kept for CSV compatibility
                 "no_price":       no_ask,         # column name kept for CSV compatibility
                 "gap":            gap,
+                "gap_bid":        gap_bid,        # bid-based gap (what limit-order traders see)
                 "gap_duration_ms": 0,             # filled in by _handle_ws_event()
                 "arb_size_usd":   arb_size_usd,
-                "opportunity":    gap >= MIN_PROFITABLE_GAP
+                "opportunity":    opportunity
             })
 
     return observations
