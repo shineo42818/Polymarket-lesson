@@ -19,7 +19,7 @@ MARKET_INTERVALS = {"5m": 300, "15m": 900}
 # LOG_INTERVAL_SECONDS controls how often we write to CSV and refresh the dashboard.
 LOG_INTERVAL_SECONDS = 10
 
-MIN_PROFITABLE_GAP = 0.06     # minimum gap after fees to flag as opportunity
+MIN_PROFITABLE_GAP = 0.03     # minimum gap to flag as opportunity (lowered from 0.06 for pilot)
 
 # ============================================================
 # PILOT MODE
@@ -36,7 +36,9 @@ WS_URL       = "wss://ws-subscriptions-clob.polymarket.com/ws/market"
 CSV_COLUMNS = [
     "recorded_at", "coin", "market_type", "slug",
     "market_closes", "seconds_left",
-    "yes_price", "no_price", "gap", "opportunity"
+    "yes_price", "no_price", "gap",
+    "gap_duration_ms", "arb_size_usd",
+    "opportunity"
 ]
 
 # Cache: stores token IDs for currently active markets
@@ -49,6 +51,10 @@ prices = {}
 
 # Global WebSocket reference (set in start_websocket)
 ws_app = None
+
+# Tracks when each gap episode started (for duration measurement).
+# Format: { (coin, mtype): datetime } — set when gap opens, cleared when it closes.
+gap_start_times = {}
 
 # Lock to protect gap_log.csv from concurrent writes.
 # _handle_ws_event() runs in the WebSocket thread; log_lock ensures
@@ -210,9 +216,10 @@ def _handle_ws_event(event):
         bids = event.get("bids", [])
         # Bids sorted ascending → last entry = highest (best) bid
         # Asks sorted ascending → first entry = lowest (best) ask
-        best_bid = float(bids[-1]["price"]) if bids else None
-        best_ask = float(asks[0]["price"])  if asks else None
-        prices[asset_id] = {"bid": best_bid, "ask": best_ask}
+        best_bid  = float(bids[-1]["price"]) if bids else None
+        best_ask  = float(asks[0]["price"])  if asks else None
+        ask_size  = float(asks[0]["size"])   if asks else None
+        prices[asset_id] = {"bid": best_bid, "ask": best_ask, "ask_size": ask_size}
 
     elif event_type == "price_change":
         # price_changes is a list — one entry per affected token
@@ -220,25 +227,38 @@ def _handle_ws_event(event):
             asset_id = change.get("asset_id")
             if not asset_id:
                 continue
-            entry = prices.get(asset_id, {"bid": None, "ask": None})
-            raw_bid = change.get("best_bid")
-            raw_ask = change.get("best_ask")
-            if raw_bid is not None:
-                entry["bid"] = float(raw_bid)
-            if raw_ask is not None:
-                entry["ask"] = float(raw_ask)
+            entry = prices.get(asset_id, {"bid": None, "ask": None, "ask_size": None})
+            raw_bid      = change.get("best_bid")
+            raw_ask      = change.get("best_ask")
+            raw_ask_size = change.get("best_ask_size")
+            if raw_bid      is not None: entry["bid"]      = float(raw_bid)
+            if raw_ask      is not None: entry["ask"]      = float(raw_ask)
+            if raw_ask_size is not None: entry["ask_size"] = float(raw_ask_size)
             prices[asset_id] = entry
 
     else:
         return  # unknown event type — skip logging
 
     # Event-driven logging: compute gaps immediately after every price update.
-    # Only save rows where a profitable opportunity exists (gap >= MIN_PROFITABLE_GAP).
-    # This keeps gap_log.csv lean — no noise from the many non-profitable ticks.
-    observations = [o for o in calculate_current_gaps() if o["opportunity"]]
-    if observations:
+    # Enrich opportunity rows with gap_duration_ms, then save only those rows.
+    all_obs = calculate_current_gaps()
+    now_dt  = datetime.now(timezone.utc)
+
+    for obs in all_obs:
+        key = (obs["coin"], obs["market_type"])
+        if obs["opportunity"]:
+            if key not in gap_start_times:
+                gap_start_times[key] = now_dt          # gap just opened — start timer
+            obs["gap_duration_ms"] = int(
+                (now_dt - gap_start_times[key]).total_seconds() * 1000
+            )
+        else:
+            gap_start_times.pop(key, None)              # gap closed — reset timer
+
+    to_save = [o for o in all_obs if o["opportunity"]]
+    if to_save:
         with log_lock:
-            save_observations(observations)
+            save_observations(to_save)
 
 
 def on_ws_error(ws, error):
@@ -301,27 +321,39 @@ def calculate_current_gaps():
             if not yes_data or not no_data:
                 continue
 
-            yes_ask = yes_data.get("ask")
-            no_ask  = no_data.get("ask")
+            yes_ask      = yes_data.get("ask")
+            no_ask       = no_data.get("ask")
 
             if yes_ask is None or no_ask is None:
                 continue
 
-            gap = round(1.0 - yes_ask - no_ask, 4)
+            gap          = round(1.0 - yes_ask - no_ask, 4)
             closes_dt    = datetime.fromtimestamp(cached["closes"], tz=timezone.utc)
             seconds_left = int((closes_dt - now).total_seconds())
 
+            # Arb size: the bottleneck side limits how much USDC can be executed.
+            # ask_size is the volume sitting at the best ask in USDC.
+            yes_ask_size = yes_data.get("ask_size")
+            no_ask_size  = no_data.get("ask_size")
+            arb_size_usd = (
+                round(min(yes_ask_size, no_ask_size), 2)
+                if yes_ask_size is not None and no_ask_size is not None
+                else None
+            )
+
             observations.append({
-                "recorded_at":   now.isoformat(),
-                "coin":          coin,
-                "market_type":   mtype,
-                "slug":          cached["slug"],
-                "market_closes": closes_dt.isoformat(),
-                "seconds_left":  max(0, seconds_left),
-                "yes_price":     yes_ask,   # column name kept for CSV compatibility
-                "no_price":      no_ask,    # column name kept for CSV compatibility
-                "gap":           gap,
-                "opportunity":   gap >= MIN_PROFITABLE_GAP
+                "recorded_at":    now.isoformat(),
+                "coin":           coin,
+                "market_type":    mtype,
+                "slug":           cached["slug"],
+                "market_closes":  closes_dt.isoformat(),
+                "seconds_left":   max(0, seconds_left),
+                "yes_price":      yes_ask,        # column name kept for CSV compatibility
+                "no_price":       no_ask,         # column name kept for CSV compatibility
+                "gap":            gap,
+                "gap_duration_ms": 0,             # filled in by _handle_ws_event()
+                "arb_size_usd":   arb_size_usd,
+                "opportunity":    gap >= MIN_PROFITABLE_GAP
             })
 
     return observations
