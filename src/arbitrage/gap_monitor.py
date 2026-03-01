@@ -404,30 +404,73 @@ def save_observations(observations):
 # ============================================================
 
 def print_dashboard(observations, cycle, pilot_seconds_left=None):
-    """Print a clean status table to the terminal."""
+    """
+    Print a live status table to the terminal.
+
+    Columns:
+      MARKET   — coin + timeframe
+      UP_ASK   — best ask for the Up token (cost to buy with a market order)
+      DN_ASK   — best ask for the Down token
+      gap_ask  — 1 - UP_ASK - DN_ASK  (AA scenario: both market orders, always ~-0.01)
+      gap_bid  — 1 - UP_BID - DN_BID  (BB scenario: both limit orders — what whales use)
+      ARB      — min(up_ask_size, dn_ask_size) in USDC — how much is executable
+      LEFT     — seconds until market closes
+      OPP      — [ASK!!] / [BID! ] / [BOTH!] / --
+    """
+    W = 80
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-    print(f"\n{'=' * 65}")
+    print(f"\n{'=' * W}")
     print(f"  GAP MONITOR | Cycle {cycle} | {now_str}")
     if pilot_seconds_left is not None:
         h, rem = divmod(int(pilot_seconds_left), 3600)
         m, s   = divmod(rem, 60)
         print(f"  PILOT MODE  | Time remaining: {h:02d}:{m:02d}:{s:02d}")
-    print(f"{'=' * 65}")
-    print(f"  {'MARKET':<22} {'ASK_YES':>8} {'ASK_NO':>8} {'GAP':>7} {'LEFT':>6} {'OPP':>6}")
-    print(f"  {'-' * 60}")
+    print(f"{'=' * W}")
+    print(f"  {'MARKET':<10} {'UP_ASK':>7} {'DN_ASK':>7} {'gap_ask':>8} {'gap_bid':>8} {'ARB':>7} {'LEFT':>6}  {'OPP':<8}")
+    print(f"  {'-' * (W - 2)}")
 
     if not observations:
         print(f"  Waiting for WebSocket price data...")
     else:
-        for obs in sorted(observations, key=lambda x: x["gap"], reverse=True):
-            label   = f"{obs['coin'].upper()} {obs['market_type']}"
-            opp_str = "YES ***" if obs["opportunity"] else "no"
-            print(f"  {label:<22} {obs['yes_price']:>8.3f} {obs['no_price']:>8.3f} "
-                  f"{obs['gap']:>7.4f} {obs['seconds_left']:>5}s {opp_str:>6}")
+        # Sort by gap_bid descending (BB scenario = what whales use).
+        # Treat None gap_bid as -999 so those rows sink to the bottom.
+        def sort_key(o):
+            return o["gap_bid"] if o["gap_bid"] is not None else -999.0
+
+        for obs in sorted(observations, key=sort_key, reverse=True):
+            label = f"{obs['coin'].upper()} {obs['market_type']}"
+
+            # gap_bid display
+            if obs["gap_bid"] is not None:
+                gap_bid_str = f"{obs['gap_bid']:>+8.4f}"
+            else:
+                gap_bid_str = f"{'N/A':>8}"
+
+            # ARB size display
+            if obs["arb_size_usd"] is not None:
+                arb_str = f"${obs['arb_size_usd']:>6.1f}"
+            else:
+                arb_str = f"{'N/A':>7}"
+
+            # OPP indicator
+            ask_opp = obs["gap"] >= MIN_PROFITABLE_GAP
+            bid_opp = obs["gap_bid"] is not None and obs["gap_bid"] >= MIN_PROFITABLE_GAP
+            if ask_opp and bid_opp:
+                opp_str = "[BOTH!]"
+            elif ask_opp:
+                opp_str = "[ASK!!]"
+            elif bid_opp:
+                opp_str = "[BID! ]"
+            else:
+                opp_str = "  --  "
+
+            print(f"  {label:<10} {obs['yes_price']:>7.3f} {obs['no_price']:>7.3f} "
+                  f"{obs['gap']:>+8.4f} {gap_bid_str} {arb_str} {obs['seconds_left']:>5}s  {opp_str}")
 
     opportunities = [o for o in observations if o["opportunity"]]
-    print(f"\n  Opportunities (gap > {MIN_PROFITABLE_GAP}): {len(opportunities)}/{len(observations)}")
-    print(f"  Prices via: WebSocket (real-time ask)  |  Logging to: {GAP_LOG_FILE}")
+    print(f"  {'-' * (W - 2)}")
+    print(f"  Opportunities: {len(opportunities)}/{len(observations)}"
+          f"  |  ask=market-order gap  bid=limit-order gap  ARB=max USDC")
 
 
 def print_pilot_summary():
