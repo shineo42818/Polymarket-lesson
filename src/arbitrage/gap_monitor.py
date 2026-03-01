@@ -50,6 +50,11 @@ prices = {}
 # Global WebSocket reference (set in start_websocket)
 ws_app = None
 
+# Lock to protect gap_log.csv from concurrent writes.
+# _handle_ws_event() runs in the WebSocket thread; log_lock ensures
+# that event-driven writes don't collide with each other.
+log_lock = threading.Lock()
+
 
 # ============================================================
 # STEP 1: MARKET SLUG CALCULATION
@@ -223,6 +228,18 @@ def _handle_ws_event(event):
             if raw_ask is not None:
                 entry["ask"] = float(raw_ask)
             prices[asset_id] = entry
+
+    else:
+        return  # unknown event type — skip logging
+
+    # Event-driven logging: compute and save gaps immediately after every
+    # book snapshot or price_change update.  This gives sub-second CSV
+    # resolution so find_gap_at_time() in whale_monitor can match gaps
+    # accurately to the exact moment a whale trade was made.
+    observations = calculate_current_gaps()
+    if observations:
+        with log_lock:
+            save_observations(observations)
 
 
 def on_ws_error(ws, error):
@@ -461,11 +478,12 @@ def run():
                 ws_app.close()
                 time.sleep(2)   # allow reconnect + new book snapshots to arrive
 
-            # Log and display every LOG_INTERVAL_SECONDS
+            # Refresh dashboard every LOG_INTERVAL_SECONDS.
+            # CSV is already written event-driven in _handle_ws_event()
+            # so we only need to print here — no save_observations() call.
             if now - last_log_time >= LOG_INTERVAL_SECONDS:
                 cycle += 1
                 observations = calculate_current_gaps()
-                save_observations(observations)
 
                 seconds_left = max(0, pilot_end - now) if PILOT_MODE else None
                 print_dashboard(observations, cycle, pilot_seconds_left=seconds_left)
