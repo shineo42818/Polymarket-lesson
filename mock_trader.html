@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Polymarket BTC/ETH Arb Mock Trader</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Courier New', monospace;
+    background: #0f1117;
+    color: #c9d1d9;
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  #header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 16px;
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    flex-wrap: wrap;
+  }
+  #header h1 { font-size: 15px; color: #4da6ff; white-space: nowrap; }
+  #clock { color: #8b949e; font-size: 12px; flex: 1; }
+  #ws-status {
+    display: flex; align-items: center; gap: 6px; font-size: 12px;
+  }
+  #ws-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #555; transition: background 0.3s;
+  }
+  #ws-dot.connected { background: #00c896; }
+  #ws-dot.connecting { background: #ffa500; animation: blink 1s infinite; }
+  #ws-dot.error { background: #ff4d6d; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .btn {
+    padding: 6px 14px; border: none; border-radius: 4px;
+    cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600;
+    transition: opacity 0.2s;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  #btn-start { background: #00c896; color: #0f1117; }
+  #btn-pause { background: #ffa500; color: #0f1117; }
+
+  /* ── INPUT ROW ── */
+  #input-row {
+    display: flex; align-items: center; gap: 16px;
+    padding: 8px 16px;
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    flex-wrap: wrap;
+  }
+  #input-row label { color: #8b949e; font-size: 12px; }
+  #input-row input, #input-row select {
+    background: #0f1117; border: 1px solid #30363d; color: #c9d1d9;
+    padding: 4px 8px; border-radius: 4px; font-family: inherit; font-size: 12px;
+    width: 90px;
+  }
+  #input-row select { width: 80px; }
+  #btn-apply { background: #4da6ff; color: #0f1117; }
+
+  /* ── SIGNAL PANEL ── */
+  #signal-panel {
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    padding: 6px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    transition: background 0.4s, border-color 0.4s;
+  }
+  #signal-panel.signal-active {
+    background: #201800;
+    border-bottom-color: #ffa500;
+  }
+  .signal-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .sig-coin    { color: #4da6ff; font-weight: 700; min-width: 28px; }
+  .sig-sep     { color: #30363d; }
+  .sig-label   { color: #8b949e; }
+  .sig-price   { color: #c9d1d9; font-weight: 600; }
+  .sig-momentum { font-weight: 600; }
+  .sig-momentum.neutral { color: #c9d1d9; }
+  .sig-momentum.hot     { color: #ffa500; }
+  .sig-tag {
+    font-size: 10px; font-weight: 700;
+    padding: 1px 6px; border-radius: 3px;
+    margin-left: 2px; min-width: 0;
+  }
+  .sig-tag.signal-tag { background: #ffa500; color: #0f1117; animation: flash 0.8s infinite; }
+  .sig-tag.stale-tag  { background: #ff4d6d; color: #fff;    animation: flash 0.8s infinite; }
+  .sig-lag { font-weight: 600; }
+  .sig-lag.lag-ok   { color: #00c896; }
+  .sig-lag.lag-warn { color: #ffa500; }
+  .sig-lag.lag-bad  { color: #ff4d6d; }
+
+  /* ── MAIN CONTENT ── */
+  #content { padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+
+  /* ── MARKET PANELS ── */
+  #market-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .market-panel {
+    background: #1a1d27;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 10px 12px;
+    transition: border-color 0.3s, background 0.3s;
+  }
+  .market-panel.opportunity {
+    border-color: #00c896;
+    background: #0d1f1a;
+  }
+  .market-panel.maker-signal {
+    border-color: #4da6ff;
+    background: #0d1520;
+  }
+  .market-panel .panel-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px;
+  }
+  .market-panel .panel-title {
+    font-size: 14px; font-weight: 700; color: #4da6ff;
+  }
+  .market-panel.opportunity .panel-title { color: #00c896; }
+  .signal-badge {
+    font-size: 11px; font-weight: 700; padding: 2px 8px;
+    border-radius: 3px; background: #1a1d27; color: #8b949e;
+  }
+  .signal-badge.ask  { background: #00c896; color: #0f1117; animation: flash 0.8s infinite; }
+  .signal-badge.bid  { background: #4da6ff; color: #0f1117; animation: flash 0.8s infinite; }
+  .signal-badge.both { background: #ffa500; color: #0f1117; animation: flash 0.8s infinite; }
+  @keyframes flash { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+  .price-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 4px 8px;
+    margin-bottom: 8px;
+  }
+  .price-cell { display: flex; flex-direction: column; }
+  .price-cell .label { font-size: 10px; color: #8b949e; text-transform: uppercase; }
+  .price-cell .value { font-size: 13px; font-weight: 600; }
+  .up-color { color: #00c896; }
+  .dn-color { color: #ff4d6d; }
+  .neutral-color { color: #c9d1d9; }
+  .gap-positive { color: #00c896; font-weight: 700; }
+  .gap-negative { color: #8b949e; }
+
+  .gap-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px 8px;
+    border-top: 1px solid #30363d;
+    padding-top: 8px;
+  }
+  .gap-cell { display: flex; flex-direction: column; }
+  .gap-cell .label { font-size: 10px; color: #8b949e; }
+  .gap-cell .value { font-size: 12px; font-weight: 600; }
+  .time-left { color: #ffa500; }
+  .arb-size { color: #4da6ff; }
+
+  /* ── LOWER ROW ── */
+  #lower-row {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: 10px;
+  }
+
+  /* ── TRADE LOG ── */
+  #trade-log-panel {
+    background: #1a1d27;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  #trade-log-panel h2 { font-size: 13px; color: #8b949e; margin-bottom: 8px; }
+  #trade-log-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+  #trade-log-table th {
+    text-align: left; color: #8b949e; padding: 4px 6px;
+    border-bottom: 1px solid #30363d; white-space: nowrap;
+  }
+  #trade-log-table td {
+    padding: 4px 6px; border-bottom: 1px solid #21262d;
+    white-space: nowrap;
+  }
+  .trade-yes  { color: #00c896; }
+  .trade-no   { color: #ff4d6d; }
+  .trade-usdc { color: #4da6ff; }
+  .trade-pnl  { color: #00c896; }
+  .trade-taker { color: #ffa500; font-weight: 700; }
+  .trade-maker { color: #4da6ff; font-weight: 700; }
+  #no-trades { color: #8b949e; font-size: 12px; padding: 8px 0; text-align: center; }
+  #log-scroll { max-height: 220px; overflow-y: auto; }
+
+  /* ── PORTFOLIO ── */
+  #portfolio-panel {
+    background: #1a1d27;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  #portfolio-panel h2 { font-size: 13px; color: #8b949e; margin-bottom: 8px; }
+
+  .port-row {
+    display: flex; justify-content: space-between;
+    padding: 3px 0; border-bottom: 1px solid #21262d;
+    font-size: 12px;
+  }
+  .port-row .port-label { color: #8b949e; }
+  .port-row .port-value { color: #c9d1d9; font-weight: 600; }
+  .port-row .port-value.green { color: #00c896; }
+  .port-row .port-value.blue  { color: #4da6ff; }
+  .port-row .port-value.amber { color: #ffa500; }
+
+  .port-section { margin-top: 10px; }
+  .port-section-title { font-size: 11px; color: #4da6ff; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 4px; }
+
+  .pos-block {
+    background: #0f1117; border-radius: 4px;
+    padding: 6px 8px; margin-bottom: 6px; font-size: 11px;
+  }
+  .pos-block .pos-title { color: #4da6ff; font-weight: 700; margin-bottom: 4px; }
+  .pos-block .pos-title .pos-type-taker { color: #ffa500; font-size: 10px; font-weight: 700; }
+  .pos-block .pos-title .pos-type-maker { color: #4da6ff; font-size: 10px; font-weight: 700; }
+  .pos-line { display: flex; justify-content: space-between; color: #8b949e; }
+  .pos-line span:last-child { color: #c9d1d9; }
+  .pos-line.pnl span:last-child { color: #00c896; }
+  .pos-line.hedge-ok span:last-child { color: #00c896; }
+  .pos-line.hedge-warn span:last-child { color: #ffa500; }
+
+  #no-positions { color: #8b949e; font-size: 12px; text-align: center; padding: 8px 0; }
+  #positions-scroll { max-height: 260px; overflow-y: auto; }
+
+  /* ── STATUS BAR ── */
+  #statusbar {
+    padding: 4px 16px;
+    background: #161b22;
+    border-top: 1px solid #30363d;
+    font-size: 11px; color: #8b949e;
+    position: sticky; bottom: 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <h1>Polymarket Arb Mock Trader</h1>
+  <span id="clock">--:--:-- UTC</span>
+  <button class="btn" id="btn-start">START</button>
+  <button class="btn" id="btn-pause" disabled>PAUSE</button>
+  <div id="ws-status">
+    <div id="ws-dot"></div>
+    <span id="ws-label">Disconnected</span>
+  </div>
+</div>
+
+<!-- INPUT ROW -->
+<div id="input-row">
+  <label>Starting USDC:
+    <input type="number" id="inp-usdc" value="1000" min="10" step="10">
+  </label>
+  <label>Trade size:
+    <select id="inp-size">
+      <option value="5">5%</option>
+      <option value="10" selected>10%</option>
+      <option value="20">20%</option>
+      <option value="50">50%</option>
+    </select>
+  </label>
+  <button class="btn" id="btn-apply">Apply</button>
+  <span id="apply-status" style="color:#8b949e;font-size:11px;"></span>
+</div>
+
+<!-- SIGNAL PANEL -->
+<div id="signal-panel">
+  <div class="signal-row">
+    <span class="sig-coin">BTC</span>
+    <span class="sig-sep">|</span>
+    <span class="sig-label">Binance:</span>
+    <span class="sig-price" id="bin-btc-price">--</span>
+    <span class="sig-sep">|</span>
+    <span class="sig-label">30s move:</span>
+    <span class="sig-momentum neutral" id="bin-btc-momentum">--</span>
+    <span class="sig-tag" id="sig-btc-mom-tag"></span>
+    <span class="sig-sep">|</span>
+    <span class="sig-label">CL:</span>
+    <span class="sig-price" id="cl-btc-price">--</span>
+    <span class="sig-sep">|</span>
+    <span class="sig-label">Lag:</span>
+    <span class="sig-lag lag-ok" id="cl-btc-lag">--</span>
+    <span class="sig-tag" id="sig-btc-cl-tag"></span>
+  </div>
+  <div class="signal-row">
+    <span class="sig-coin">ETH</span>
+    <span class="sig-sep">|</span>
+    <span class="sig-label">Binance:</span>
+    <span class="sig-price" id="bin-eth-price">--</span>
+    <span class="sig-sep">|</span>
+    <span class="sig-label">30s move:</span>
+    <span class="sig-momentum neutral" id="bin-eth-momentum">--</span>
+    <span class="sig-tag" id="sig-eth-mom-tag"></span>
+    <span class="sig-sep">|</span>
+    <span class="sig-label">CL:</span>
+    <span class="sig-price" id="cl-eth-price">--</span>
+    <span class="sig-sep">|</span>
+    <span class="sig-label">Lag:</span>
+    <span class="sig-lag lag-ok" id="cl-eth-lag">--</span>
+    <span class="sig-tag" id="sig-eth-cl-tag"></span>
+  </div>
+</div>
+
+<!-- CONTENT -->
+<div id="content">
+
+  <!-- MARKET PANELS -->
+  <div id="market-grid">
+    <div class="market-panel" id="panel-btc_5m">
+      <div class="panel-header">
+        <span class="panel-title">BTC 5m</span>
+        <span class="signal-badge" id="sig-btc_5m">--</span>
+      </div>
+      <div class="price-grid">
+        <div class="price-cell">
+          <span class="label">UP ASK</span>
+          <span class="value up-color" id="btc_5m-yes-ask">--</span>
+        </div>
+        <div class="price-cell">
+          <span class="label">DN ASK</span>
+          <span class="value dn-color" id="btc_5m-no-ask">--</span>
+        </div>
+        <div class="price-cell">
+          <span class="label">UP BID</span>
+          <span class="value up-color" id="btc_5m-yes-bid">--</span>
+        </div>
+        <div class="price-cell">
+          <span class="label">DN BID</span>
+          <span class="value dn-color" id="btc_5m-no-bid">--</span>
+        </div>
+      </div>
+      <div class="gap-row">
+        <div class="gap-cell">
+          <span class="label">GAP (BID) ★</span>
+          <span class="value" id="btc_5m-gap-bid">--</span>
+        </div>
+        <div class="gap-cell">
+          <span class="label">GAP (ASK)</span>
+          <span class="value" id="btc_5m-gap-ask">--</span>
+        </div>
+        <div class="gap-cell">
+          <span class="label">ARB SIZE</span>
+          <span class="value arb-size" id="btc_5m-arb">--</span>
+        </div>
+        <div class="gap-cell">
+          <span class="label">TIME LEFT</span>
+          <span class="value time-left" id="btc_5m-time">--</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="market-panel" id="panel-btc_15m">
+      <div class="panel-header">
+        <span class="panel-title">BTC 15m</span>
+        <span class="signal-badge" id="sig-btc_15m">--</span>
+      </div>
+      <div class="price-grid">
+        <div class="price-cell"><span class="label">UP ASK</span><span class="value up-color" id="btc_15m-yes-ask">--</span></div>
+        <div class="price-cell"><span class="label">DN ASK</span><span class="value dn-color" id="btc_15m-no-ask">--</span></div>
+        <div class="price-cell"><span class="label">UP BID</span><span class="value up-color" id="btc_15m-yes-bid">--</span></div>
+        <div class="price-cell"><span class="label">DN BID</span><span class="value dn-color" id="btc_15m-no-bid">--</span></div>
+      </div>
+      <div class="gap-row">
+        <div class="gap-cell"><span class="label">GAP (BID) ★</span><span class="value" id="btc_15m-gap-bid">--</span></div>
+        <div class="gap-cell"><span class="label">GAP (ASK)</span><span class="value" id="btc_15m-gap-ask">--</span></div>
+        <div class="gap-cell"><span class="label">ARB SIZE</span><span class="value arb-size" id="btc_15m-arb">--</span></div>
+        <div class="gap-cell"><span class="label">TIME LEFT</span><span class="value time-left" id="btc_15m-time">--</span></div>
+      </div>
+    </div>
+
+    <div class="market-panel" id="panel-eth_5m">
+      <div class="panel-header">
+        <span class="panel-title">ETH 5m</span>
+        <span class="signal-badge" id="sig-eth_5m">--</span>
+      </div>
+      <div class="price-grid">
+        <div class="price-cell"><span class="label">UP ASK</span><span class="value up-color" id="eth_5m-yes-ask">--</span></div>
+        <div class="price-cell"><span class="label">DN ASK</span><span class="value dn-color" id="eth_5m-no-ask">--</span></div>
+        <div class="price-cell"><span class="label">UP BID</span><span class="value up-color" id="eth_5m-yes-bid">--</span></div>
+        <div class="price-cell"><span class="label">DN BID</span><span class="value dn-color" id="eth_5m-no-bid">--</span></div>
+      </div>
+      <div class="gap-row">
+        <div class="gap-cell"><span class="label">GAP (BID) ★</span><span class="value" id="eth_5m-gap-bid">--</span></div>
+        <div class="gap-cell"><span class="label">GAP (ASK)</span><span class="value" id="eth_5m-gap-ask">--</span></div>
+        <div class="gap-cell"><span class="label">ARB SIZE</span><span class="value arb-size" id="eth_5m-arb">--</span></div>
+        <div class="gap-cell"><span class="label">TIME LEFT</span><span class="value time-left" id="eth_5m-time">--</span></div>
+      </div>
+    </div>
+
+    <div class="market-panel" id="panel-eth_15m">
+      <div class="panel-header">
+        <span class="panel-title">ETH 15m</span>
+        <span class="signal-badge" id="sig-eth_15m">--</span>
+      </div>
+      <div class="price-grid">
+        <div class="price-cell"><span class="label">UP ASK</span><span class="value up-color" id="eth_15m-yes-ask">--</span></div>
+        <div class="price-cell"><span class="label">DN ASK</span><span class="value dn-color" id="eth_15m-no-ask">--</span></div>
+        <div class="price-cell"><span class="label">UP BID</span><span class="value up-color" id="eth_15m-yes-bid">--</span></div>
+        <div class="price-cell"><span class="label">DN BID</span><span class="value dn-color" id="eth_15m-no-bid">--</span></div>
+      </div>
+      <div class="gap-row">
+        <div class="gap-cell"><span class="label">GAP (BID) ★</span><span class="value" id="eth_15m-gap-bid">--</span></div>
+        <div class="gap-cell"><span class="label">GAP (ASK)</span><span class="value" id="eth_15m-gap-ask">--</span></div>
+        <div class="gap-cell"><span class="label">ARB SIZE</span><span class="value arb-size" id="eth_15m-arb">--</span></div>
+        <div class="gap-cell"><span class="label">TIME LEFT</span><span class="value time-left" id="eth_15m-time">--</span></div>
+      </div>
+    </div>
+  </div><!-- /#market-grid -->
+
+  <!-- LOWER ROW -->
+  <div id="lower-row">
+
+    <!-- TRADE LOG -->
+    <div id="trade-log-panel">
+      <h2>Trade Log <span id="trade-count" style="color:#4da6ff"></span></h2>
+      <div id="log-scroll">
+        <div id="no-trades">No trades yet. Click START to begin monitoring.</div>
+        <table id="trade-log-table" style="display:none">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Market</th>
+              <th>Type</th>
+              <th>YES@</th>
+              <th>NO@</th>
+              <th>USDC</th>
+              <th>YES tkns</th>
+              <th>NO tkns</th>
+              <th>Hdg P&L</th>
+            </tr>
+          </thead>
+          <tbody id="trade-log-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PORTFOLIO -->
+    <div id="portfolio-panel">
+      <h2>Portfolio</h2>
+      <div class="port-row">
+        <span class="port-label">USDC Balance</span>
+        <span class="port-value blue" id="port-balance">$1,000.00</span>
+      </div>
+      <div class="port-row">
+        <span class="port-label">Starting USDC</span>
+        <span class="port-value" id="port-start">$1,000.00</span>
+      </div>
+      <div class="port-row">
+        <span class="port-label">Trades Executed</span>
+        <span class="port-value" id="port-trades">0</span>
+      </div>
+      <div class="port-row">
+        <span class="port-label">Total Certain P&L</span>
+        <span class="port-value green" id="port-total-pnl">$0.00</span>
+      </div>
+
+      <div class="port-section">
+        <div class="port-section-title">Open Positions</div>
+        <div id="positions-scroll">
+          <div id="no-positions">No positions yet.</div>
+          <div id="positions-list"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /#lower-row -->
+
+</div><!-- /#content -->
+
+<div id="statusbar">Ready. Click START to connect to Polymarket and begin monitoring.</div>
+
+<script>
+// ============================================================
+// CONFIGURATION (matches gap_monitor.py)
+// ============================================================
+const WS_URL        = 'wss://ws-subscriptions-clob.polymarket.com/ws/market';
+const GAMMA_API     = '/api/markets';  // proxied by server.py to avoid CORS
+const MIN_GAP       = 0.05;
+const INTERVALS     = { '5m': 300, '15m': 900 };
+const FEE_RATE      = 0.25;
+const FEE_EXP       = 2;
+const HEDGE_THRESH  = 0.95;
+
+// Maker bid signal configuration
+const MIN_MAKER_GAP     = 0.03;   // gap_bid threshold for maker bid trades
+const MOMENTUM_THRESH   = 0.003;  // 0.3% price move in 30s triggers Signal A
+const CL_LAG_THRESH     = 30;     // seconds: oracle considered stale
+const CL_DIVERGE_THRESH = 0.003;  // 0.3% Binance vs Chainlink divergence triggers Signal B
+const PRICE_HISTORY_SEC = 65;     // rolling buffer for momentum calculation
+
+// Binance and Chainlink endpoints
+const BINANCE_WS_URL = 'wss://stream.binance.com:9443/ws/btcusdt@aggTrade/ethusdt@aggTrade';
+const CHAINLINK_RPC  = 'https://cloudflare-eth.com';
+const CL_CONTRACTS   = {
+  btc: '0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88',
+  eth: '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419',
+};
+
+// Market definitions (BTC + ETH only — 4 markets)
+const MARKET_DEFS = [
+  { key: 'btc_5m',  coin: 'btc', type: '5m'  },
+  { key: 'btc_15m', coin: 'btc', type: '15m' },
+  { key: 'eth_5m',  coin: 'eth', type: '5m'  },
+  { key: 'eth_15m', coin: 'eth', type: '15m' },
+];
+
+// ============================================================
+// STATE
+// ============================================================
+
+// MARKETS: live price + meta state per market key
+const MARKETS = {};
+MARKET_DEFS.forEach(d => {
+  MARKETS[d.key] = {
+    coin: d.coin, type: d.type,
+    slug: null, closes: null,
+    yesToken: null, noToken: null,
+    yesBid: null, yesAsk: null,
+    noBid:  null, noAsk:  null,
+    yesAskSize: null, noAskSize: null,
+    gapAsk: null, gapBid: null, arbSizeUSD: null,
+    secondsLeft: null,
+  };
+});
+
+// prices: token_id → { bid, ask, askSize }
+const prices = {};
+
+const portfolio = {
+  usdcBalance:  1000,
+  usdcStarting: 1000,
+  tradeSizePct: 10,
+  trades:    [],   // newest-first global log
+  positions: {},   // posKey → position object
+};
+
+let ws = null;
+let isRunning     = false;
+let isRotating    = false;
+let rotationTimer  = null;
+let countdownTimer = null;
+let clockTimer     = null;
+
+// Tracks slugs we already attempted to fetch.
+// Prevents re-fetching the same failed slug every second.
+const triedSlugs = new Set();
+
+// Binance + Chainlink state
+const BINANCE = {
+  btc: { price: null, priceHistory: [], momentum30s: null },
+  eth: { price: null, priceHistory: [], momentum30s: null },
+};
+const CHAINLINK = {
+  btc: { price: null, updatedAt: null, lag: null },
+  eth: { price: null, updatedAt: null, lag: null },
+};
+const signals = {
+  btc: { momentumFired: false, chainlinkFired: false, anyFired: false },
+  eth: { momentumFired: false, chainlinkFired: false, anyFired: false },
+};
+let binanceWs       = null;
+let chainlinkTimer  = null;
+let signalPanelTimer = null;
+
+// ============================================================
+// FORMULA HELPERS (mirrors analyze_whale_patterns.py)
+// ============================================================
+
+function feePerShare(p) {
+  // fee = 0.25 × (p × (1-p))^2
+  return FEE_RATE * Math.pow(p * (1.0 - p), FEE_EXP);
+}
+
+// ============================================================
+// SLUG CALCULATION (mirrors get_current_slug())
+// ============================================================
+
+function getCurrentSlug(coin, type) {
+  const interval = INTERVALS[type];
+  const now = Math.floor(Date.now() / 1000);
+  const ts = now - (now % interval);
+  const slug = `${coin}-updown-${type}-${ts}`;
+  const closes = ts + interval;
+  return { slug, closes };
+}
+
+// ============================================================
+// GAMMA API — TOKEN ID FETCH
+// ============================================================
+
+async function fetchTokenIds(slug) {
+  try {
+    const url = `${GAMMA_API}?slug=${encodeURIComponent(slug)}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    if (!data || data.length === 0) return null;
+    const market = data[0];
+    const tokenIds = JSON.parse(market.clobTokenIds || '[]');
+    if (tokenIds.length < 2) return null;
+    return { yesToken: tokenIds[0], noToken: tokenIds[1] };
+  } catch (e) {
+    console.warn('fetchTokenIds error:', slug, e);
+    return null;
+  }
+}
+
+async function refreshCacheIfNeeded() {
+  let changed = false;
+  const fetches = MARKET_DEFS.map(async d => {
+    const m = MARKETS[d.key];
+    const { slug, closes } = getCurrentSlug(d.coin, d.type);
+
+    if (m.slug === slug) return;
+    if (triedSlugs.has(d.key + slug)) return;
+    triedSlugs.add(d.key + slug);
+
+    setStatus(`Fetching tokens for ${slug}...`);
+    const result = await fetchTokenIds(slug);
+    if (result) {
+      m.slug     = slug;
+      m.closes   = closes;
+      m.yesToken = result.yesToken;
+      m.noToken  = result.noToken;
+      m.yesBid = m.yesAsk = m.noBid = m.noAsk = null;
+      m.yesAskSize = m.noAskSize = null;
+      m.gapAsk = m.gapBid = m.arbSizeUSD = null;
+      changed = true;
+      console.log('Token IDs loaded:', d.key, result);
+    } else {
+      console.warn('Could not load token IDs for', slug, '— market panel will show no data');
+    }
+  });
+  await Promise.all(fetches);
+  return changed;
+}
+
+// ============================================================
+// WEBSOCKET (Polymarket)
+// ============================================================
+
+function buildSubscription() {
+  const ids = [];
+  MARKET_DEFS.forEach(d => {
+    const m = MARKETS[d.key];
+    if (m.yesToken) ids.push(m.yesToken);
+    if (m.noToken)  ids.push(m.noToken);
+  });
+  return JSON.stringify({ assets_ids: ids, type: 'market' });
+}
+
+function getMarketBySide(tokenId) {
+  for (const d of MARKET_DEFS) {
+    const m = MARKETS[d.key];
+    if (m.yesToken === tokenId) return { key: d.key, side: 'yes' };
+    if (m.noToken  === tokenId) return { key: d.key, side: 'no'  };
+  }
+  return null;
+}
+
+function connectWS() {
+  const hasTokens = MARKET_DEFS.some(d => MARKETS[d.key].yesToken);
+  if (!hasTokens) {
+    setStatus('No token IDs loaded — check internet/CORS. Retrying in 10s...');
+    setWsDot('error');
+    if (isRunning) setTimeout(() => { if (isRunning) { triedSlugs.clear(); refreshCacheIfNeeded().then(connectWS); } }, 10000);
+    return;
+  }
+
+  if (ws) {
+    ws.onclose = null;
+    ws.close();
+    ws = null;
+  }
+
+  setWsDot('connecting');
+  setStatus('Connecting to WebSocket...');
+
+  ws = new WebSocket(WS_URL);
+
+  ws.onopen = () => {
+    setWsDot('connected');
+    setStatus('Connected. Waiting for price data...');
+    const sub = buildSubscription();
+    ws.send(sub);
+    console.log('WS subscribed to', JSON.parse(sub).assets_ids.length, 'tokens');
+  };
+
+  ws.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (Array.isArray(data)) {
+        data.forEach(handleWSEvent);
+      } else {
+        handleWSEvent(data);
+      }
+    } catch (e) {
+      console.warn('WS parse error:', e);
+    }
+  };
+
+  ws.onerror = (err) => {
+    console.warn('WS error:', err);
+    setWsDot('error');
+  };
+
+  ws.onclose = () => {
+    setWsDot('error');
+    setStatus('WS disconnected. Reconnecting in 5s...');
+    if (isRunning) {
+      setTimeout(() => { if (isRunning) connectWS(); }, 5000);
+    }
+  };
+}
+
+// ============================================================
+// WS EVENT HANDLER (mirrors _handle_ws_event())
+// ============================================================
+
+function handleWSEvent(event) {
+  const eventType = event.event_type || event.type || '';
+
+  if (eventType === 'book') {
+    const assetId = event.asset_id;
+    if (!assetId) return;
+    const bids = event.bids || [];
+    const asks = event.asks || [];
+    const bestBid  = bids.length > 0 ? parseFloat(bids[bids.length - 1].price) : null;
+    const bestAsk  = asks.length > 0 ? parseFloat(asks[0].price) : null;
+    const askSize  = asks.length > 0 ? parseFloat(asks[0].size)  : null;
+    prices[assetId] = { bid: bestBid, ask: bestAsk, askSize };
+    updateMarketPrices(assetId);
+
+  } else if (eventType === 'price_change') {
+    const changes = event.price_changes || [];
+    changes.forEach(change => {
+      const assetId = change.asset_id;
+      if (!assetId) return;
+      const entry = prices[assetId] || { bid: null, ask: null, askSize: null };
+      if (change.best_bid      != null) entry.bid     = parseFloat(change.best_bid);
+      if (change.best_ask      != null) entry.ask     = parseFloat(change.best_ask);
+      if (change.best_ask_size != null) entry.askSize = parseFloat(change.best_ask_size);
+      prices[assetId] = entry;
+      updateMarketPrices(assetId);
+    });
+  }
+}
+
+function updateMarketPrices(tokenId) {
+  const lookup = getMarketBySide(tokenId);
+  if (!lookup) return;
+
+  const m = MARKETS[lookup.key];
+  const p = prices[tokenId];
+  if (!p) return;
+
+  if (lookup.side === 'yes') {
+    m.yesAsk     = p.ask;
+    m.yesBid     = p.bid;
+    m.yesAskSize = p.askSize;
+  } else {
+    m.noAsk     = p.ask;
+    m.noBid     = p.bid;
+    m.noAskSize = p.askSize;
+  }
+
+  recalcGap(lookup.key);
+  updateMarketPanel(lookup.key);
+  checkOpportunity(lookup.key);
+}
+
+// ============================================================
+// GAP CALCULATION (mirrors calculate_current_gaps())
+// ============================================================
+
+function recalcGap(key) {
+  const m = MARKETS[key];
+  if (m.yesAsk == null || m.noAsk == null) {
+    m.gapAsk = null; m.gapBid = null; m.arbSizeUSD = null;
+    return;
+  }
+
+  // Sanity filter: near market close, stale asks create fake gaps
+  if (m.yesAsk > 0.90 && m.noAsk > 0.90) {
+    m.gapAsk = null; m.gapBid = null; m.arbSizeUSD = null;
+    return;
+  }
+
+  m.gapAsk = Math.round((1.0 - m.yesAsk - m.noAsk) * 10000) / 10000;
+  m.gapBid = (m.yesBid != null && m.noBid != null)
+    ? Math.round((1.0 - m.yesBid - m.noBid) * 10000) / 10000
+    : null;
+
+  m.arbSizeUSD = (m.yesAskSize != null && m.noAskSize != null)
+    ? Math.round(Math.min(m.yesAskSize, m.noAskSize) * 100) / 100
+    : null;
+}
+
+// ============================================================
+// TAKER TRADE EXECUTION (ask gap >= 0.05)
+// ============================================================
+
+function executeMockTrade(key) {
+  const m = MARKETS[key];
+  if (!isRunning) return;
+  if (m.yesAsk == null || m.noAsk == null) return;
+  if (m.gapAsk == null || m.gapAsk < MIN_GAP) return;
+
+  const posKey = `${m.coin}_${m.type}_${m.slug}`;
+  if (portfolio.positions[posKey]) return;
+
+  const tradeUsdc = portfolio.usdcBalance * (portfolio.tradeSizePct / 100);
+  if (tradeUsdc < 0.01) return;
+
+  const halfUsdc = tradeUsdc / 2;
+  const feeYes = feePerShare(m.yesAsk);
+  const feeNo  = feePerShare(m.noAsk);
+  const yesTokens = (halfUsdc / m.yesAsk) * (1 - feeYes);
+  const noTokens  = (halfUsdc / m.noAsk)  * (1 - feeNo);
+
+  portfolio.usdcBalance -= tradeUsdc;
+
+  const pos = {
+    key:        posKey,
+    market:     `${m.coin.toUpperCase()} ${m.type}`,
+    orderType:  'TAKER',
+    slug:       m.slug,
+    yesAskPrice: m.yesAsk,
+    noAskPrice:  m.noAsk,
+    yesSpend:    halfUsdc,
+    noSpend:     halfUsdc,
+    yesTokens,
+    noTokens,
+    gapAsk:      m.gapAsk,
+  };
+
+  pos.yesAvgCost      = pos.yesSpend / pos.yesTokens;
+  pos.noAvgCost       = pos.noSpend  / pos.noTokens;
+  pos.combinedAvgCost = pos.yesAvgCost + pos.noAvgCost;
+
+  pos.hedgedTokens = Math.min(pos.yesTokens, pos.noTokens);
+  pos.hedgedProfit = pos.hedgedTokens * (1.0 - pos.combinedAvgCost);
+
+  const excessIsYes  = pos.yesTokens >= pos.noTokens;
+  pos.unhedgedTokens = Math.abs(pos.yesTokens - pos.noTokens);
+  pos.excessSide     = excessIsYes ? 'YES' : 'NO';
+  pos.excessAvgCost  = excessIsYes ? pos.yesAvgCost : pos.noAvgCost;
+  pos.winGain        = pos.unhedgedTokens * (1.0 - pos.excessAvgCost);
+  pos.loseLoss       = pos.unhedgedTokens * pos.excessAvgCost;
+  pos.pnlBest        = pos.hedgedProfit + pos.winGain;
+  pos.pnlWorst       = pos.hedgedProfit - pos.loseLoss;
+
+  const ratio    = Math.min(pos.yesTokens, pos.noTokens) / Math.max(pos.yesTokens, pos.noTokens);
+  pos.hedgeRatio = ratio;
+  pos.hedgeLabel = ratio >= HEDGE_THRESH ? 'Fully Hedged' : `${(ratio * 100).toFixed(1)}% hedged`;
+
+  portfolio.positions[posKey] = pos;
+
+  const now = new Date();
+  portfolio.trades.unshift({
+    timestamp: now.toUTCString().slice(17, 25) + ' UTC',
+    market:    pos.market,
+    orderType: 'TAKER',
+    yesAt:     m.yesAsk,
+    noAt:      m.noAsk,
+    usdc:      tradeUsdc,
+    yesTokens,
+    noTokens,
+    hedgedPnl: pos.hedgedProfit,
+  });
+
+  updateTradeLog();
+  updatePortfolioPanel();
+  setStatus(`TAKER ARB: ${pos.market} | gap_ask ${m.gapAsk.toFixed(4)} | Hdg P&L ~$${pos.hedgedProfit.toFixed(2)}`);
+  console.log('Taker trade:', posKey, 'gap_ask=', m.gapAsk, 'hedgedProfit=', pos.hedgedProfit.toFixed(4));
+}
+
+// ============================================================
+// OPPORTUNITY CHECK (taker — ask gap)
+// ============================================================
+
+function checkOpportunity(key) {
+  if (!isRunning) return;
+  const m = MARKETS[key];
+  if (m.gapAsk != null && m.gapAsk >= MIN_GAP) {
+    executeMockTrade(key);
+  }
+}
+
+// ============================================================
+// MARKET ROTATION CHECK (runs every 1s)
+// ============================================================
+
+async function checkMarketRotation() {
+  if (isRotating) return;
+
+  let needsRotation = false;
+  for (const d of MARKET_DEFS) {
+    const m = MARKETS[d.key];
+    if (m.slug === null) continue;
+    const { slug } = getCurrentSlug(d.coin, d.type);
+    if (m.slug !== slug) { needsRotation = true; break; }
+  }
+
+  if (needsRotation) {
+    isRotating = true;
+    console.log('Market rotation detected — refreshing tokens and reconnecting WS');
+    setStatus('Market rotated — fetching new token IDs...');
+    await refreshCacheIfNeeded();
+    connectWS();
+    isRotating = false;
+  }
+}
+
+// ============================================================
+// COUNTDOWN TIMER (every 1s)
+// ============================================================
+
+function updateCountdowns() {
+  const now = Math.floor(Date.now() / 1000);
+  MARKET_DEFS.forEach(d => {
+    const m = MARKETS[d.key];
+    if (m.closes) m.secondsLeft = Math.max(0, m.closes - now);
+    const el = document.getElementById(`${d.key}-time`);
+    if (el) el.textContent = m.secondsLeft != null ? `${m.secondsLeft}s` : '--';
+  });
+}
+
+// ============================================================
+// BINANCE WEBSOCKET (Signal Source A)
+// ============================================================
+
+function connectBinanceWS() {
+  if (binanceWs) {
+    binanceWs.onclose = null;
+    binanceWs.close();
+    binanceWs = null;
+  }
+  binanceWs = new WebSocket(BINANCE_WS_URL);
+
+  binanceWs.onopen = () => {
+    console.log('Binance WS connected');
+  };
+
+  binanceWs.onmessage = (event) => {
+    try {
+      handleBinanceTrade(JSON.parse(event.data));
+    } catch (e) {
+      console.warn('Binance WS parse error:', e);
+    }
+  };
+
+  binanceWs.onerror = (err) => {
+    console.warn('Binance WS error:', err);
+  };
+
+  binanceWs.onclose = () => {
+    console.log('Binance WS closed. Reconnecting in 5s...');
+    if (isRunning) setTimeout(() => { if (isRunning) connectBinanceWS(); }, 5000);
+  };
+}
+
+function handleBinanceTrade(msg) {
+  // aggTrade stream: { e:'aggTrade', s:'BTCUSDT', p:'price', ... }
+  if (!msg || msg.e !== 'aggTrade') return;
+  const sym  = (msg.s || '').toUpperCase();
+  const coin = sym === 'BTCUSDT' ? 'btc' : sym === 'ETHUSDT' ? 'eth' : null;
+  if (!coin) return;
+
+  const price = parseFloat(msg.p);
+  if (isNaN(price)) return;
+
+  const ts = Date.now();
+  const b  = BINANCE[coin];
+  b.price  = price;
+  b.priceHistory.push({ ts, price });
+
+  // Trim entries older than the rolling window
+  const cutoff = ts - PRICE_HISTORY_SEC * 1000;
+  while (b.priceHistory.length > 0 && b.priceHistory[0].ts < cutoff) {
+    b.priceHistory.shift();
+  }
+
+  calcMomentum30s(coin);
+  evalSignals(coin);
+  updateSignalPanel();
+}
+
+function calcMomentum30s(coin) {
+  const b = BINANCE[coin];
+  if (!b.priceHistory.length || b.price == null) { b.momentum30s = null; return; }
+
+  const target = Date.now() - 30000; // 30s ago
+
+  // Find the newest entry that is still <= 30s old
+  let ref = null;
+  for (let i = 0; i < b.priceHistory.length; i++) {
+    if (b.priceHistory[i].ts <= target) ref = b.priceHistory[i];
+    else break;
+  }
+  // Fallback: all entries within 30s — use the oldest available
+  if (!ref) ref = b.priceHistory[0];
+
+  b.momentum30s = (b.price - ref.price) / ref.price;
+}
+
+// ============================================================
+// CHAINLINK ORACLE (Signal Source B)
+// ============================================================
+
+async function pollChainlink(coin) {
+  const contract = CL_CONTRACTS[coin];
+  const body = JSON.stringify({
+    jsonrpc: '2.0', id: 1, method: 'eth_call',
+    params: [{ to: contract, data: '0xfeaf968c' }, 'latest'],
+  });
+  try {
+    const resp = await fetch(CHAINLINK_RPC, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    });
+    const json = await resp.json();
+    if (!json || !json.result || json.result === '0x') return;
+
+    const hex = json.result.replace(/^0x/, '');
+    // Response: 5 × 32-byte (64 hex chars) slots
+    // [0] roundId  [1] answer  [2] startedAt  [3] updatedAt  [4] answeredInRound
+    if (hex.length < 256) return;
+    const answer    = BigInt('0x' + hex.slice(64, 128));   // slot 1
+    const updatedAt = BigInt('0x' + hex.slice(192, 256));  // slot 3
+
+    const cl    = CHAINLINK[coin];
+    cl.price     = Number(answer) / 1e8;
+    cl.updatedAt = Number(updatedAt);
+    cl.lag       = Math.floor(Date.now() / 1000) - cl.updatedAt;
+
+    evalSignals(coin);
+    updateSignalPanel();
+    console.log(`Chainlink ${coin.toUpperCase()}: $${cl.price.toFixed(2)}, lag=${cl.lag}s`);
+  } catch (e) {
+    console.warn('Chainlink poll error:', coin, e);
+  }
+}
+
+// ============================================================
+// SIGNAL EVALUATION
+// ============================================================
+
+function evalSignals(coin) {
+  const b  = BINANCE[coin];
+  const cl = CHAINLINK[coin];
+  const s  = signals[coin];
+
+  // Signal A: Binance 30s price momentum exceeds threshold
+  s.momentumFired = b.momentum30s != null && Math.abs(b.momentum30s) >= MOMENTUM_THRESH;
+
+  // Signal B: Chainlink oracle is stale AND Binance has diverged from it
+  if (cl.price != null && b.price != null && cl.lag != null) {
+    const diverge    = Math.abs(b.price - cl.price) / cl.price;
+    s.chainlinkFired = cl.lag > CL_LAG_THRESH && diverge >= CL_DIVERGE_THRESH;
+  } else {
+    s.chainlinkFired = false;
+  }
+
+  s.anyFired = s.momentumFired || s.chainlinkFired;
+
+  // Fire maker bid for all markets of this coin when signal is active
+  if (s.anyFired) {
+    MARKET_DEFS.forEach(d => {
+      if (d.coin === coin) executeMakerBid(d.key);
+    });
+  }
+}
+
+// ============================================================
+// MAKER BID EXECUTION (bid gap >= 0.03, signal-driven)
+// ============================================================
+
+function executeMakerBid(key) {
+  const m = MARKETS[key];
+  if (!isRunning) return;
+  if (m.yesBid == null || m.noBid == null) return;
+
+  const gapBid = m.gapBid;
+  if (gapBid == null || gapBid < MIN_MAKER_GAP) return;
+
+  // One trade per slug — check both taker and maker keys
+  const baseKey  = `${m.coin}_${m.type}_${m.slug}`;
+  const makerKey = `${baseKey}_maker`;
+  if (portfolio.positions[baseKey] || portfolio.positions[makerKey]) return;
+
+  const tradeUsdc = portfolio.usdcBalance * (portfolio.tradeSizePct / 100);
+  if (tradeUsdc < 0.01) return;
+
+  const halfUsdc  = tradeUsdc / 2;
+  const feeYes    = feePerShare(m.yesBid);
+  const feeNo     = feePerShare(m.noBid);
+  const yesTokens = (halfUsdc / m.yesBid) * (1 - feeYes);
+  const noTokens  = (halfUsdc / m.noBid)  * (1 - feeNo);
+
+  portfolio.usdcBalance -= tradeUsdc;
+
+  const pos = {
+    key:         makerKey,
+    market:      `${m.coin.toUpperCase()} ${m.type}`,
+    orderType:   'MAKER',
+    slug:        m.slug,
+    yesAskPrice: m.yesBid,  // filled at bid price
+    noAskPrice:  m.noBid,
+    yesSpend:    halfUsdc,
+    noSpend:     halfUsdc,
+    yesTokens,
+    noTokens,
+    gapBid,
+  };
+
+  pos.yesAvgCost      = pos.yesSpend / pos.yesTokens;
+  pos.noAvgCost       = pos.noSpend  / pos.noTokens;
+  pos.combinedAvgCost = pos.yesAvgCost + pos.noAvgCost;
+
+  pos.hedgedTokens = Math.min(pos.yesTokens, pos.noTokens);
+  pos.hedgedProfit = pos.hedgedTokens * (1.0 - pos.combinedAvgCost);
+
+  const excessIsYes  = pos.yesTokens >= pos.noTokens;
+  pos.unhedgedTokens = Math.abs(pos.yesTokens - pos.noTokens);
+  pos.excessSide     = excessIsYes ? 'YES' : 'NO';
+  pos.excessAvgCost  = excessIsYes ? pos.yesAvgCost : pos.noAvgCost;
+  pos.winGain        = pos.unhedgedTokens * (1.0 - pos.excessAvgCost);
+  pos.loseLoss       = pos.unhedgedTokens * pos.excessAvgCost;
+  pos.pnlBest        = pos.hedgedProfit + pos.winGain;
+  pos.pnlWorst       = pos.hedgedProfit - pos.loseLoss;
+
+  const ratio    = Math.min(pos.yesTokens, pos.noTokens) / Math.max(pos.yesTokens, pos.noTokens);
+  pos.hedgeRatio = ratio;
+  pos.hedgeLabel = ratio >= HEDGE_THRESH ? 'Fully Hedged' : `${(ratio * 100).toFixed(1)}% hedged`;
+
+  portfolio.positions[makerKey] = pos;
+
+  const now = new Date();
+  portfolio.trades.unshift({
+    timestamp: now.toUTCString().slice(17, 25) + ' UTC',
+    market:    pos.market,
+    orderType: 'MAKER',
+    yesAt:     m.yesBid,
+    noAt:      m.noBid,
+    usdc:      tradeUsdc,
+    yesTokens,
+    noTokens,
+    hedgedPnl: pos.hedgedProfit,
+  });
+
+  updateTradeLog();
+  updatePortfolioPanel();
+  setStatus(`MAKER BID: ${pos.market} | gap_bid ${gapBid.toFixed(4)} | Hdg P&L ~$${pos.hedgedProfit.toFixed(2)}`);
+  console.log('Maker bid:', makerKey, 'gap_bid=', gapBid, 'hedgedProfit=', pos.hedgedProfit.toFixed(4));
+}
+
+// ============================================================
+// SIGNAL PANEL DOM UPDATE
+// ============================================================
+
+function updateSignalPanel() {
+  for (const coin of ['btc', 'eth']) {
+    const b  = BINANCE[coin];
+    const cl = CHAINLINK[coin];
+    const s  = signals[coin];
+
+    // Recompute live lag from stored updatedAt (counts up every second)
+    if (cl.updatedAt != null) {
+      cl.lag = Math.floor(Date.now() / 1000) - cl.updatedAt;
+    }
+
+    // Binance price
+    const priceEl = document.getElementById(`bin-${coin}-price`);
+    if (priceEl) {
+      priceEl.textContent = b.price != null
+        ? `$${b.price.toLocaleString('en', { maximumFractionDigits: 0 })}`
+        : '--';
+    }
+
+    // Binance 30s momentum
+    const momEl    = document.getElementById(`bin-${coin}-momentum`);
+    const momTagEl = document.getElementById(`sig-${coin}-mom-tag`);
+    if (momEl) {
+      if (b.momentum30s != null) {
+        const sign = b.momentum30s >= 0 ? '+' : '';
+        momEl.textContent = `${sign}${(b.momentum30s * 100).toFixed(2)}%`;
+        momEl.className   = `sig-momentum ${Math.abs(b.momentum30s) >= MOMENTUM_THRESH ? 'hot' : 'neutral'}`;
+      } else {
+        momEl.textContent = '--';
+        momEl.className   = 'sig-momentum neutral';
+      }
+    }
+    if (momTagEl) {
+      momTagEl.textContent = s.momentumFired ? '[SIGNAL]' : '';
+      momTagEl.className   = s.momentumFired ? 'sig-tag signal-tag' : 'sig-tag';
+    }
+
+    // Chainlink price
+    const clPriceEl = document.getElementById(`cl-${coin}-price`);
+    if (clPriceEl) {
+      clPriceEl.textContent = cl.price != null
+        ? `$${cl.price.toLocaleString('en', { maximumFractionDigits: 0 })}`
+        : '--';
+    }
+
+    // Chainlink lag
+    const lagEl   = document.getElementById(`cl-${coin}-lag`);
+    const clTagEl = document.getElementById(`sig-${coin}-cl-tag`);
+    if (lagEl) {
+      if (cl.lag != null) {
+        lagEl.textContent = `${cl.lag}s`;
+        lagEl.className   = cl.lag < 15           ? 'sig-lag lag-ok'
+                          : cl.lag <= CL_LAG_THRESH ? 'sig-lag lag-warn'
+                          : 'sig-lag lag-bad';
+      } else {
+        lagEl.textContent = '--';
+        lagEl.className   = 'sig-lag lag-ok';
+      }
+    }
+    if (clTagEl) {
+      clTagEl.textContent = s.chainlinkFired ? '[STALE]' : '';
+      clTagEl.className   = s.chainlinkFired ? 'sig-tag stale-tag' : 'sig-tag';
+    }
+  }
+
+  // Amber panel background when any signal is active
+  const panel = document.getElementById('signal-panel');
+  if (panel) {
+    panel.classList.toggle('signal-active', signals.btc.anyFired || signals.eth.anyFired);
+  }
+}
+
+// ============================================================
+// DOM UPDATES
+// ============================================================
+
+function fmt(v, digits=3) {
+  if (v == null) return '--';
+  return v.toFixed(digits);
+}
+
+function updateMarketPanel(key) {
+  const m = MARKETS[key];
+
+  // Prices
+  setEl(`${key}-yes-ask`, fmt(m.yesAsk));
+  setEl(`${key}-no-ask`,  fmt(m.noAsk));
+  setEl(`${key}-yes-bid`, fmt(m.yesBid));
+  setEl(`${key}-no-bid`,  fmt(m.noBid));
+
+  // GAP (BID) — primary, threshold 0.03
+  const gapBidEl = document.getElementById(`${key}-gap-bid`);
+  if (gapBidEl) {
+    if (m.gapBid != null) {
+      const sign = m.gapBid >= 0 ? '+' : '';
+      gapBidEl.textContent = `${sign}${m.gapBid.toFixed(4)}`;
+      gapBidEl.className   = `value ${m.gapBid >= MIN_MAKER_GAP ? 'gap-positive' : 'gap-negative'}`;
+    } else {
+      gapBidEl.textContent = '--';
+      gapBidEl.className   = 'value gap-negative';
+    }
+  }
+
+  // GAP (ASK) — secondary / informational, threshold 0.05
+  const gapAskEl = document.getElementById(`${key}-gap-ask`);
+  if (gapAskEl) {
+    if (m.gapAsk != null) {
+      const sign = m.gapAsk >= 0 ? '+' : '';
+      gapAskEl.textContent = `${sign}${m.gapAsk.toFixed(4)}`;
+      gapAskEl.className   = `value ${m.gapAsk >= MIN_GAP ? 'gap-positive' : 'gap-negative'}`;
+    } else {
+      gapAskEl.textContent = '--';
+      gapAskEl.className   = 'value gap-negative';
+    }
+  }
+
+  // Arb size
+  const arbEl = document.getElementById(`${key}-arb`);
+  if (arbEl) {
+    arbEl.textContent = m.arbSizeUSD != null
+      ? `$${m.arbSizeUSD.toLocaleString('en', { maximumFractionDigits: 0 })}`
+      : '--';
+  }
+
+  // Signal badge — ask uses 0.05 (rare), bid uses 0.03 (maker threshold)
+  const sigEl   = document.getElementById(`sig-${key}`);
+  const panelEl = document.getElementById(`panel-${key}`);
+  const askOpp  = m.gapAsk != null && m.gapAsk >= MIN_GAP;
+  const bidOpp  = m.gapBid != null && m.gapBid >= MIN_MAKER_GAP;
+
+  if (askOpp && bidOpp) {
+    sigEl.textContent = '[BOTH!]';
+    sigEl.className   = 'signal-badge both';
+    panelEl.classList.add('opportunity');
+    panelEl.classList.remove('maker-signal');
+  } else if (askOpp) {
+    sigEl.textContent = '[ARB!]';
+    sigEl.className   = 'signal-badge ask';
+    panelEl.classList.add('opportunity');
+    panelEl.classList.remove('maker-signal');
+  } else if (bidOpp) {
+    sigEl.textContent = '[BID!]';
+    sigEl.className   = 'signal-badge bid';
+    panelEl.classList.remove('opportunity');
+    panelEl.classList.add('maker-signal');
+  } else {
+    sigEl.textContent = '--';
+    sigEl.className   = 'signal-badge';
+    panelEl.classList.remove('opportunity', 'maker-signal');
+  }
+}
+
+function setEl(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
+function updateTradeLog() {
+  const noTrades = document.getElementById('no-trades');
+  const table    = document.getElementById('trade-log-table');
+  const tbody    = document.getElementById('trade-log-body');
+  const count    = document.getElementById('trade-count');
+
+  if (portfolio.trades.length === 0) {
+    noTrades.style.display = '';
+    table.style.display    = 'none';
+    count.textContent      = '';
+    return;
+  }
+
+  noTrades.style.display = 'none';
+  table.style.display    = '';
+  count.textContent      = `(${portfolio.trades.length})`;
+
+  tbody.innerHTML = portfolio.trades.map(t => {
+    const typeClass = t.orderType === 'MAKER' ? 'trade-maker' : 'trade-taker';
+    return `
+      <tr>
+        <td>${t.timestamp}</td>
+        <td>${t.market}</td>
+        <td class="${typeClass}">${t.orderType || 'TAKER'}</td>
+        <td class="trade-yes">$${t.yesAt.toFixed(3)}</td>
+        <td class="trade-no">$${t.noAt.toFixed(3)}</td>
+        <td class="trade-usdc">$${t.usdc.toFixed(2)}</td>
+        <td class="trade-yes">${t.yesTokens.toFixed(2)}</td>
+        <td class="trade-no">${t.noTokens.toFixed(2)}</td>
+        <td class="trade-pnl">~$${t.hedgedPnl.toFixed(3)}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function updatePortfolioPanel() {
+  document.getElementById('port-balance').textContent =
+    `$${portfolio.usdcBalance.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  document.getElementById('port-start').textContent =
+    `$${portfolio.usdcStarting.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  document.getElementById('port-trades').textContent =
+    portfolio.trades.length;
+
+  const totalPnl = Object.values(portfolio.positions)
+    .reduce((sum, pos) => sum + pos.hedgedProfit, 0);
+  document.getElementById('port-total-pnl').textContent =
+    `$${totalPnl.toFixed(3)}`;
+
+  const posArr  = Object.values(portfolio.positions);
+  const noPos   = document.getElementById('no-positions');
+  const posList = document.getElementById('positions-list');
+
+  if (posArr.length === 0) {
+    noPos.style.display = '';
+    posList.innerHTML   = '';
+  } else {
+    noPos.style.display = 'none';
+    posList.innerHTML   = posArr.map(pos => {
+      const hedgeClass = pos.hedgeRatio >= HEDGE_THRESH ? 'pos-line hedge-ok' : 'pos-line hedge-warn';
+      const typeSpan   = pos.orderType === 'MAKER'
+        ? `<span class="pos-type-maker">[MAKER]</span>`
+        : `<span class="pos-type-taker">[TAKER]</span>`;
+      return `
+        <div class="pos-block">
+          <div class="pos-title">${pos.market} ${typeSpan}</div>
+          <div class="${hedgeClass}">
+            <span>Hedging</span><span>${pos.hedgeLabel}</span>
+          </div>
+          <div class="pos-line">
+            <span>YES avg cost</span><span>${pos.yesAvgCost.toFixed(4)}</span>
+          </div>
+          <div class="pos-line">
+            <span>NO avg cost</span><span>${pos.noAvgCost.toFixed(4)}</span>
+          </div>
+          <div class="pos-line">
+            <span>Combined avg</span><span>${pos.combinedAvgCost.toFixed(4)}</span>
+          </div>
+          <div class="pos-line">
+            <span>YES tokens</span><span>${pos.yesTokens.toFixed(2)}</span>
+          </div>
+          <div class="pos-line">
+            <span>NO tokens</span><span>${pos.noTokens.toFixed(2)}</span>
+          </div>
+          <div class="pos-line pnl">
+            <span>Certain P&L</span><span>~$${pos.hedgedProfit.toFixed(3)}</span>
+          </div>
+          <div class="pos-line">
+            <span>Best case</span><span>+$${pos.pnlBest.toFixed(3)}</span>
+          </div>
+          <div class="pos-line">
+            <span>Worst case</span><span>+$${pos.pnlWorst.toFixed(3)}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+}
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+
+function setWsDot(state) {
+  const dot   = document.getElementById('ws-dot');
+  const label = document.getElementById('ws-label');
+  dot.className = `${state}`;
+  label.textContent = { connected: 'Connected', connecting: 'Connecting...', error: 'Disconnected' }[state] || state;
+}
+
+function setStatus(msg) {
+  document.getElementById('statusbar').textContent = msg;
+}
+
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getUTCHours()).padStart(2, '0');
+  const m = String(now.getUTCMinutes()).padStart(2, '0');
+  const s = String(now.getUTCSeconds()).padStart(2, '0');
+  document.getElementById('clock').textContent = `${h}:${m}:${s} UTC`;
+}
+
+// ============================================================
+// START / PAUSE
+// ============================================================
+
+async function start() {
+  const usdcEl = document.getElementById('inp-usdc');
+  const sizeEl = document.getElementById('inp-size');
+
+  portfolio.usdcStarting = parseFloat(usdcEl.value) || 1000;
+  portfolio.usdcBalance  = portfolio.usdcStarting;
+  portfolio.tradeSizePct = parseInt(sizeEl.value) || 10;
+  portfolio.trades       = [];
+  portfolio.positions    = {};
+
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-pause').disabled = false;
+  document.getElementById('inp-usdc').disabled  = true;
+  document.getElementById('inp-size').disabled  = true;
+
+  isRunning = true;
+
+  updatePortfolioPanel();
+  updateTradeLog();
+
+  setStatus('Fetching market token IDs from Gamma API (4 markets)...');
+  setWsDot('connecting');
+
+  await refreshCacheIfNeeded();
+
+  const loaded = MARKET_DEFS.filter(d => MARKETS[d.key].yesToken).length;
+  if (loaded === 0) {
+    setStatus('ERROR: Could not load any token IDs. Check DevTools Console for CORS/network errors.');
+    setWsDot('error');
+  } else {
+    setStatus(`Loaded ${loaded}/4 markets. Connecting WebSocket...`);
+    connectWS();
+  }
+
+  // Binance WebSocket — Signal Source A
+  connectBinanceWS();
+
+  // Chainlink oracle — Signal Source B (poll immediately + every 5s)
+  pollChainlink('btc');
+  pollChainlink('eth');
+  chainlinkTimer = setInterval(() => { pollChainlink('btc'); pollChainlink('eth'); }, 5000);
+
+  // Signal panel display refresh — every 1s (keeps lag counter live)
+  signalPanelTimer = setInterval(updateSignalPanel, 1000);
+
+  // Market rotation + countdown
+  rotationTimer  = setInterval(checkMarketRotation, 1000);
+  countdownTimer = setInterval(updateCountdowns, 1000);
+}
+
+function pause() {
+  isRunning = !isRunning;
+  const btn = document.getElementById('btn-pause');
+  if (isRunning) {
+    btn.textContent = 'PAUSE';
+    btn.style.background = '#ffa500';
+    setStatus('Resumed. Monitoring for gaps...');
+  } else {
+    btn.textContent = 'RESUME';
+    btn.style.background = '#00c896';
+    setStatus('PAUSED — prices still updating, no trades firing.');
+  }
+}
+
+function applySettings() {
+  if (isRunning) {
+    const sizeEl = document.getElementById('inp-size');
+    portfolio.tradeSizePct = parseInt(sizeEl.value) || 10;
+    document.getElementById('apply-status').textContent = 'Trade size updated.';
+    setTimeout(() => document.getElementById('apply-status').textContent = '', 2000);
+  } else {
+    const usdcEl = document.getElementById('inp-usdc');
+    document.getElementById('port-balance').textContent =
+      `$${parseFloat(usdcEl.value || 1000).toLocaleString('en', { minimumFractionDigits: 2 })}`;
+    document.getElementById('port-start').textContent =
+      `$${parseFloat(usdcEl.value || 1000).toLocaleString('en', { minimumFractionDigits: 2 })}`;
+    document.getElementById('apply-status').textContent = 'Settings staged.';
+    setTimeout(() => document.getElementById('apply-status').textContent = '', 2000);
+  }
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+
+document.getElementById('btn-start').addEventListener('click', start);
+document.getElementById('btn-pause').addEventListener('click', pause);
+document.getElementById('btn-apply').addEventListener('click', applySettings);
+
+// Clock
+clockTimer = setInterval(updateClock, 1000);
+updateClock();
+
+// Initialize portfolio display
+updatePortfolioPanel();
+</script>
+</body>
+</html>
