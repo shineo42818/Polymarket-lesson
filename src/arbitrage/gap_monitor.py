@@ -19,7 +19,7 @@ MARKET_INTERVALS = {"5m": 300, "15m": 900}
 # LOG_INTERVAL_SECONDS controls how often we write to CSV and refresh the dashboard.
 LOG_INTERVAL_SECONDS = 10
 
-MIN_PROFITABLE_GAP = 0.03     # minimum gap to flag as opportunity (lowered from 0.06 for pilot)
+MIN_PROFITABLE_GAP = 0.05     # minimum gap to flag as opportunity (lowered from 0.06 for pilot)
 
 # ============================================================
 # PILOT MODE
