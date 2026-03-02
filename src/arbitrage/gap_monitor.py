@@ -396,7 +396,9 @@ def save_observations(observations):
     if not observations:
         return
     df = pd.DataFrame(observations)[CSV_COLUMNS]
-    df.to_csv(GAP_LOG_FILE, mode="a", header=False, index=False)
+    # Write headers if file was deleted mid-run (e.g. user manually cleaned it).
+    need_header = not os.path.exists(GAP_LOG_FILE) or os.path.getsize(GAP_LOG_FILE) == 0
+    df.to_csv(GAP_LOG_FILE, mode="a", header=need_header, index=False)
 
 
 # ============================================================

@@ -119,7 +119,7 @@ def find_gap_at_time(trade_timestamp, coin, market_type):
 
     try:
         gap_df = pd.read_csv(GAP_LOG_FILE)
-        if gap_df.empty:
+        if gap_df.empty or "recorded_at" not in gap_df.columns:
             return None, None
 
         gap_df["recorded_at"] = pd.to_datetime(gap_df["recorded_at"], utc=True)
