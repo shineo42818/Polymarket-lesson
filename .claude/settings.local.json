@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "WebSearch",
-      "WebFetch(domain:docs.polymarket.com)"
+      "WebFetch(domain:docs.polymarket.com)",
+      "Bash(ls:*)"
     ]
   }
 }
