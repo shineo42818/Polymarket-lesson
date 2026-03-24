@@ -3,7 +3,34 @@
     "allow": [
       "WebSearch",
       "WebFetch(domain:docs.polymarket.com)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(source:*)",
+      "WebFetch(domain:gamma-api.polymarket.com)",
+      "WebFetch(domain:data-api.polymarket.com)",
+      "WebFetch(domain:clob.polymarket.com)",
+      "Bash(cd:*)",
+      "Bash(find 'C:\\\\Users\\\\Supakorn.Co\\\\Documents\\\\Polymarket lesson\\\\data' -type f -name *.csv -o -name *.json -o -name *.txt)",
+      "Read(//c/Users/Supakorn.Co/Documents/**)",
+      "Bash(find 'Polymarket lesson' -type f -name *.md -o -name *.txt)",
+      "Bash(python src/arbitrage/analyze_gap_log.py)",
+      "Bash(python src/arbitrage/backtest_arb.py)",
+      "Bash(python -u src/arbitrage/backtest_arb.py)",
+      "Bash(find 'C:\\\\Users\\\\Supakorn.Co\\\\Documents\\\\Polymarket lesson\\\\venv\\\\Lib\\\\site-packages' -maxdepth 1 -name *.dist-info -type d)",
+      "Bash(sed 's/-[0-9].*//')",
+      "Bash(find data:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(grep -E \"\\\\.py$\")",
+      "Bash(pip show:*)",
+      "Bash(pip list:*)",
+      "Bash(pip install:*)",
+      "Bash(python -c \"from src.bot import config, fee, models, db; db.init_db\\(\\); print\\(''All modules import OK''\\); print\\(''DB initialized at'', config.DB_PATH\\)\")",
+      "Bash(python -c \":*)",
+      "Bash(python -c \"from src.bot.main import app; print\\(''FastAPI app created:'', app.title\\)\")",
+      "Bash(timeout 10 uvicorn src.bot.main:app --host 127.0.0.1 --port 8000)",
+      "Bash(timeout 45 python -c \":*)",
+      "Bash(timeout 60 python -c \":*)",
+      "Bash(netstat -ano)",
+      "Bash(sqlite3 data/bot.db \".tables\")"
     ]
   }
 }

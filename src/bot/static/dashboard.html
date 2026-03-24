@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Polymarket Arb Bot</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Courier New', monospace;
+    background: #0f1117;
+    color: #c9d1d9;
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  #header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 16px;
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    flex-wrap: wrap;
+  }
+  #header h1 { font-size: 15px; color: #4da6ff; white-space: nowrap; }
+  .mode-badge {
+    font-size: 11px; font-weight: 700;
+    padding: 2px 10px; border-radius: 4px;
+    text-transform: uppercase;
+  }
+  .mode-badge.paper { background: #ffa500; color: #0f1117; }
+  .mode-badge.live { background: #00c896; color: #0f1117; }
+  #clock { color: #8b949e; font-size: 12px; flex: 1; }
+  #ws-status { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+  #ws-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #555; transition: background 0.3s;
+  }
+  #ws-dot.connected { background: #00c896; }
+  #ws-dot.connecting { background: #ffa500; animation: blink 1s infinite; }
+  #ws-dot.error { background: #ff4d6d; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .btn {
+    padding: 6px 14px; border: none; border-radius: 4px;
+    cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600;
+    transition: opacity 0.2s;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-start { background: #00c896; color: #0f1117; }
+  .btn-stop { background: #ffa500; color: #0f1117; }
+  .btn-kill { background: #ff4d6d; color: #fff; }
+
+  /* ── STATS BAR ── */
+  #stats-bar {
+    display: flex; gap: 24px; padding: 10px 16px;
+    background: #161b22; border-bottom: 1px solid #30363d;
+    flex-wrap: wrap;
+  }
+  .stat { display: flex; flex-direction: column; gap: 2px; }
+  .stat-label { font-size: 10px; color: #8b949e; text-transform: uppercase; }
+  .stat-value { font-size: 16px; font-weight: 700; }
+  .stat-value.positive { color: #00c896; }
+  .stat-value.negative { color: #ff4d6d; }
+  .stat-value.neutral { color: #c9d1d9; }
+
+  /* ── SIGNAL PANEL ── */
+  #signal-panel {
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    padding: 6px 16px;
+    font-size: 12px;
+    transition: background 0.4s;
+  }
+  #signal-panel.signal-active { background: #201800; border-bottom-color: #ffa500; }
+  .signal-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; flex-wrap: wrap; }
+  .sig-coin { color: #4da6ff; font-weight: 700; min-width: 28px; }
+  .sig-sep { color: #30363d; }
+  .sig-label { color: #8b949e; }
+  .sig-price { color: #c9d1d9; font-weight: 600; }
+  .sig-momentum { font-weight: 600; }
+  .sig-momentum.neutral { color: #c9d1d9; }
+  .sig-momentum.hot { color: #ffa500; }
+  .sig-tag {
+    font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 3px;
+  }
+  .sig-tag.signal { background: #ffa500; color: #0f1117; }
+  .sig-tag.stale { background: #ff4d6d; color: #fff; }
+
+  /* ── MAIN GRID ── */
+  #main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+  @media (max-width: 800px) { #main-grid { grid-template-columns: 1fr; } }
+
+  /* ── MARKET PANEL ── */
+  .market-panel {
+    border: 1px solid #30363d;
+    padding: 10px 14px;
+  }
+  .market-panel h3 {
+    font-size: 13px; color: #4da6ff; margin-bottom: 8px;
+    display: flex; justify-content: space-between;
+  }
+  .market-panel h3 .time-left { color: #8b949e; font-weight: 400; }
+  .price-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px;
+    font-size: 12px; margin-bottom: 6px;
+  }
+  .price-grid .label { color: #8b949e; }
+  .price-grid .val { font-weight: 600; text-align: right; }
+  .gap-row { display: flex; gap: 16px; font-size: 12px; }
+  .gap-val { font-weight: 700; }
+  .gap-val.positive { color: #00c896; }
+  .gap-val.negative { color: #ff4d6d; }
+  .gap-val.neutral { color: #8b949e; }
+  .arb-tag {
+    font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 3px;
+    background: #00c896; color: #0f1117; margin-left: 8px;
+  }
+
+  /* ── PNL CHART ── */
+  #pnl-section {
+    border: 1px solid #30363d; padding: 10px 14px;
+  }
+  #pnl-section h3 { font-size: 13px; color: #4da6ff; margin-bottom: 8px; }
+  #pnl-chart { width: 100%; height: 120px; background: #0d1117; border-radius: 4px; }
+
+  /* ── TRADE LOG ── */
+  #trade-section {
+    border: 1px solid #30363d; padding: 10px 14px;
+  }
+  #trade-section h3 { font-size: 13px; color: #4da6ff; margin-bottom: 8px; }
+  #trade-log {
+    width: 100%; border-collapse: collapse; font-size: 11px;
+  }
+  #trade-log th {
+    text-align: left; color: #8b949e; border-bottom: 1px solid #30363d;
+    padding: 4px 6px; font-weight: 600;
+  }
+  #trade-log td { padding: 4px 6px; border-bottom: 1px solid #21262d; }
+  .status-filled { color: #00c896; font-weight: 600; }
+  .status-pending { color: #ffa500; font-weight: 600; }
+  .status-expired { color: #8b949e; }
+  .status-settled { color: #4da6ff; font-weight: 600; }
+
+  /* ── FOOTER ── */
+  #footer {
+    padding: 8px 16px; text-align: center;
+    color: #484f58; font-size: 11px;
+    border-top: 1px solid #30363d;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <h1>Polymarket Arb Bot</h1>
+  <span id="mode-badge" class="mode-badge paper">PAPER</span>
+  <span id="clock"></span>
+  <div id="ws-status">
+    <div id="ws-dot" class="connecting"></div>
+    <span id="ws-label">Connecting...</span>
+  </div>
+  <button class="btn btn-start" onclick="apiCall('start')">START</button>
+  <button class="btn btn-stop" onclick="apiCall('stop')">STOP</button>
+  <button class="btn btn-kill" onclick="if(confirm('KILL: Cancel all orders and stop?')) apiCall('kill')">KILL</button>
+</div>
+
+<!-- STATS BAR -->
+<div id="stats-bar">
+  <div class="stat">
+    <span class="stat-label">USDC Balance</span>
+    <span class="stat-value neutral" id="stat-balance">$100.00</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Total P&L</span>
+    <span class="stat-value neutral" id="stat-pnl">$0.00</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Daily P&L</span>
+    <span class="stat-value neutral" id="stat-daily">$0.00</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Open Positions</span>
+    <span class="stat-value neutral" id="stat-positions">0</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Engine</span>
+    <span class="stat-value neutral" id="stat-engine">STOPPED</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Uptime</span>
+    <span class="stat-value neutral" id="stat-uptime">0s</span>
+  </div>
+</div>
+
+<!-- SIGNAL PANEL -->
+<div id="signal-panel">
+  <div class="signal-row" id="signal-btc">
+    <span class="sig-coin">BTC</span>
+    <span class="sig-sep">|</span>
+    <span class="sig-label">Binance:</span>
+    <span class="sig-price" id="sig-btc-price">--</span>
+    <span class="sig-sep">|</span>
+    <span class="sig-label">30s:</span>
+    <span class="sig-momentum neutral" id="sig-btc-mom">0.00%</span>
+    <span class="sig-sep">|</span>
+    <span class="sig-label">CL lag:</span>
+    <span id="sig-btc-lag">--</span>
+  </div>
+  <div class="signal-row" id="signal-eth">
+    <span class="sig-coin">ETH</span>
+    <span class="sig-sep">|</span>
+    <span class="sig-label">Binance:</span>
+    <span class="sig-price" id="sig-eth-price">--</span>
+    <span class="sig-sep">|</span>
+    <span class="sig-label">30s:</span>
+    <span class="sig-momentum neutral" id="sig-eth-mom">0.00%</span>
+    <span class="sig-sep">|</span>
+    <span class="sig-label">CL lag:</span>
+    <span id="sig-eth-lag">--</span>
+  </div>
+  <div class="signal-row" id="signal-sol">
+    <span class="sig-coin">SOL</span>
+    <span class="sig-sep">|</span>
+    <span class="sig-label">Binance:</span>
+    <span class="sig-price" id="sig-sol-price">--</span>
+    <span class="sig-sep">|</span>
+    <span class="sig-label">30s:</span>
+    <span class="sig-momentum neutral" id="sig-sol-mom">0.00%</span>
+    <span class="sig-sep">|</span>
+    <span class="sig-label">CL lag:</span>
+    <span id="sig-sol-lag">--</span>
+  </div>
+</div>
+
+<!-- MARKET PANELS -->
+<div id="main-grid"></div>
+
+<!-- PNL CHART -->
+<div id="pnl-section">
+  <h3>P&L History</h3>
+  <canvas id="pnl-chart"></canvas>
+</div>
+
+<!-- TRADE LOG -->
+<div id="trade-section">
+  <h3>Trade Log <span id="trade-count" style="color:#8b949e;font-weight:400"></span></h3>
+  <table id="trade-log">
+    <thead>
+      <tr>
+        <th>Time</th><th>Market</th><th>Gap Bid</th><th>USDC</th>
+        <th>Profit</th><th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="trade-tbody"></tbody>
+  </table>
+</div>
+
+<!-- FOOTER -->
+<div id="footer">
+  Polymarket BB Arbitrage Bot | Paper Trading Mode | Not Financial Advice
+</div>
+
+<script>
+// ── State ──
+const state = {
+  markets: {},
+  portfolio: {},
+  signals: {},
+  status: {},
+  trades: [],
+  pnlHistory: [],
+  sseConnected: false,
+};
+
+// ── Market panels (generated dynamically) ──
+const MARKETS = [
+  {coin:'btc', type:'5m'}, {coin:'btc', type:'15m'},
+  {coin:'eth', type:'5m'}, {coin:'eth', type:'15m'},
+  {coin:'sol', type:'5m'}, {coin:'sol', type:'15m'},
+];
+
+function initMarketPanels() {
+  const grid = document.getElementById('main-grid');
+  grid.innerHTML = '';
+  for (const m of MARKETS) {
+    const key = m.coin + '_' + m.type;
+    const div = document.createElement('div');
+    div.className = 'market-panel';
+    div.id = 'panel-' + key;
+    div.innerHTML = `
+      <h3>${m.coin.toUpperCase()} ${m.type} <span class="time-left" id="time-${key}">--</span></h3>
+      <div class="price-grid">
+        <span class="label"></span><span class="label" style="text-align:right">Bid</span><span class="label" style="text-align:right">Ask</span>
+        <span class="label">YES</span><span class="val" id="yb-${key}">--</span><span class="val" id="ya-${key}">--</span>
+        <span class="label">NO</span><span class="val" id="nb-${key}">--</span><span class="val" id="na-${key}">--</span>
+      </div>
+      <div class="gap-row">
+        <span>gap_bid: <span class="gap-val neutral" id="gb-${key}">--</span></span>
+        <span>gap_ask: <span class="gap-val neutral" id="ga-${key}">--</span></span>
+        <span>arb: <span id="arb-${key}" style="color:#8b949e">--</span></span>
+        <span id="opp-${key}"></span>
+      </div>
+    `;
+    grid.appendChild(div);
+  }
+}
+
+// ── SSE Connection ──
+let evtSource = null;
+
+function connectSSE() {
+  setWsStatus('connecting');
+  evtSource = new EventSource('/stream');
+
+  evtSource.onopen = () => {
+    state.sseConnected = true;
+    setWsStatus('connected');
+  };
+
+  evtSource.onerror = () => {
+    state.sseConnected = false;
+    setWsStatus('error');
+  };
+
+  evtSource.addEventListener('prices', (e) => {
+    state.markets = JSON.parse(e.data);
+    updateMarketPanels();
+  });
+
+  evtSource.addEventListener('portfolio', (e) => {
+    state.portfolio = JSON.parse(e.data);
+    updatePortfolio();
+  });
+
+  evtSource.addEventListener('status', (e) => {
+    state.status = JSON.parse(e.data);
+    updateStatus();
+  });
+
+  evtSource.addEventListener('signal', (e) => {
+    state.signals = JSON.parse(e.data);
+    updateSignals();
+  });
+
+  evtSource.addEventListener('trade', (e) => {
+    const trade = JSON.parse(e.data);
+    // Update or add trade
+    const idx = state.trades.findIndex(t => t.trade_id === trade.trade_id);
+    if (idx >= 0) state.trades[idx] = trade;
+    else state.trades.unshift(trade);
+    updateTradeLog();
+  });
+}
+
+function setWsStatus(s) {
+  const dot = document.getElementById('ws-dot');
+  const label = document.getElementById('ws-label');
+  dot.className = 'ws-dot ' + s;  // preserve base class
+  dot.setAttribute('class', s === 'connected' ? 'connected' : s === 'connecting' ? 'connecting' : 'error');
+  // Fix: set id-based class
+  dot.id = 'ws-dot';
+  dot.className = s;
+  label.textContent = s === 'connected' ? 'Connected' : s === 'connecting' ? 'Connecting...' : 'Disconnected';
+}
+
+// ── UI Update Functions ──
+
+function updateMarketPanels() {
+  for (const [key, m] of Object.entries(state.markets)) {
+    const el = (id) => document.getElementById(id);
+    if (!el('yb-' + key)) continue;
+
+    el('yb-' + key).textContent = m.yes_bid != null ? m.yes_bid.toFixed(3) : '--';
+    el('ya-' + key).textContent = m.yes_ask != null ? m.yes_ask.toFixed(3) : '--';
+    el('nb-' + key).textContent = m.no_bid != null ? m.no_bid.toFixed(3) : '--';
+    el('na-' + key).textContent = m.no_ask != null ? m.no_ask.toFixed(3) : '--';
+
+    // Gap bid
+    const gbEl = el('gb-' + key);
+    if (m.gap_bid != null) {
+      gbEl.textContent = (m.gap_bid >= 0 ? '+' : '') + m.gap_bid.toFixed(4);
+      gbEl.className = 'gap-val ' + (m.gap_bid >= 0.05 ? 'positive' : m.gap_bid >= 0 ? 'neutral' : 'negative');
+    } else {
+      gbEl.textContent = '--';
+      gbEl.className = 'gap-val neutral';
+    }
+
+    // Gap ask
+    const gaEl = el('ga-' + key);
+    if (m.gap_ask != null) {
+      gaEl.textContent = (m.gap_ask >= 0 ? '+' : '') + m.gap_ask.toFixed(4);
+      gaEl.className = 'gap-val ' + (m.gap_ask >= 0.05 ? 'positive' : m.gap_ask >= 0 ? 'neutral' : 'negative');
+    } else {
+      gaEl.textContent = '--';
+      gaEl.className = 'gap-val neutral';
+    }
+
+    // Arb size
+    el('arb-' + key).textContent = m.arb_size != null ? '$' + m.arb_size.toFixed(0) : '--';
+
+    // Time left
+    const tlEl = el('time-' + key);
+    if (m.seconds_left != null) {
+      const mins = Math.floor(m.seconds_left / 60);
+      const secs = m.seconds_left % 60;
+      tlEl.textContent = mins + ':' + String(secs).padStart(2, '0');
+    } else {
+      tlEl.textContent = '--';
+    }
+
+    // Opportunity indicator
+    const oppEl = el('opp-' + key);
+    if (m.gap_bid != null && m.gap_bid >= 0.05) {
+      oppEl.innerHTML = '<span class="arb-tag">ARB!</span>';
+    } else {
+      oppEl.innerHTML = '';
+    }
+  }
+}
+
+function updatePortfolio() {
+  const p = state.portfolio;
+  const setStatVal = (id, val, prefix) => {
+    const el = document.getElementById(id);
+    el.textContent = prefix + val.toFixed(val >= 100 ? 2 : 4);
+    el.className = 'stat-value ' + (val > 0 ? 'positive' : val < 0 ? 'negative' : 'neutral');
+  };
+
+  if (p.usdc_balance != null) {
+    document.getElementById('stat-balance').textContent = '$' + p.usdc_balance.toFixed(2);
+  }
+  if (p.total_pnl != null) setStatVal('stat-pnl', p.total_pnl, '$');
+  if (p.daily_pnl != null) setStatVal('stat-daily', p.daily_pnl, '$');
+  if (p.open_positions != null) {
+    document.getElementById('stat-positions').textContent = p.open_positions;
+  }
+  if (p.mode) {
+    const badge = document.getElementById('mode-badge');
+    badge.textContent = p.mode;
+    badge.className = 'mode-badge ' + p.mode.toLowerCase();
+  }
+
+  // Add to P&L history for chart
+  if (p.total_pnl != null) {
+    state.pnlHistory.push({ time: Date.now(), pnl: p.total_pnl });
+    if (state.pnlHistory.length > 500) state.pnlHistory.shift();
+    drawPnlChart();
+  }
+}
+
+function updateStatus() {
+  const s = state.status;
+  if (s.engine) {
+    document.getElementById('stat-engine').textContent = s.engine;
+  }
+  if (s.uptime_s != null) {
+    const h = Math.floor(s.uptime_s / 3600);
+    const m = Math.floor((s.uptime_s % 3600) / 60);
+    const sec = s.uptime_s % 60;
+    document.getElementById('stat-uptime').textContent =
+      h > 0 ? h + 'h ' + m + 'm' : m > 0 ? m + 'm ' + sec + 's' : sec + 's';
+  }
+}
+
+function updateSignals() {
+  const panel = document.getElementById('signal-panel');
+  let anyFired = false;
+
+  for (const [coin, sig] of Object.entries(state.signals)) {
+    const priceEl = document.getElementById('sig-' + coin + '-price');
+    const momEl = document.getElementById('sig-' + coin + '-mom');
+    const lagEl = document.getElementById('sig-' + coin + '-lag');
+    if (!priceEl) continue;
+
+    priceEl.textContent = sig.binance_price != null ? '$' + sig.binance_price.toFixed(2) : '--';
+
+    const momPct = (sig.momentum_30s * 100).toFixed(2);
+    momEl.textContent = (sig.momentum_30s >= 0 ? '+' : '') + momPct + '%';
+    momEl.className = 'sig-momentum ' + (sig.momentum_fired ? 'hot' : 'neutral');
+
+    // Momentum tag
+    let momTag = momEl.nextElementSibling;
+    while (momTag && momTag.classList.contains('sig-tag')) { momTag.remove(); momTag = momEl.nextElementSibling; }
+    if (sig.momentum_fired) {
+      const tag = document.createElement('span');
+      tag.className = 'sig-tag signal';
+      tag.textContent = 'SIGNAL';
+      momEl.after(tag);
+    }
+
+    lagEl.textContent = sig.cl_lag != null ? sig.cl_lag.toFixed(0) + 's' : '--';
+    if (sig.cl_fired) {
+      lagEl.innerHTML += ' <span class="sig-tag stale">STALE</span>';
+    }
+
+    if (sig.any_fired) anyFired = true;
+  }
+
+  panel.className = anyFired ? 'signal-active' : '';
+  panel.id = 'signal-panel';
+}
+
+function updateTradeLog() {
+  const tbody = document.getElementById('trade-tbody');
+  const count = document.getElementById('trade-count');
+  count.textContent = '(' + state.trades.length + ')';
+
+  tbody.innerHTML = '';
+  for (const t of state.trades.slice(0, 30)) {
+    const tr = document.createElement('tr');
+    const time = t.timestamp ? t.timestamp.substring(11, 19) : '--';
+    const market = (t.coin || '').toUpperCase() + ' ' + (t.market_type || '');
+    const pnl = t.settled_pnl != null ? '$' + t.settled_pnl.toFixed(4) : (t.hedged_profit != null ? '~$' + t.hedged_profit.toFixed(4) : '--');
+    const statusClass = 'status-' + (t.status || 'pending').toLowerCase();
+
+    tr.innerHTML = `
+      <td>${time}</td>
+      <td>${market}</td>
+      <td>${t.gap_bid != null ? t.gap_bid.toFixed(4) : '--'}</td>
+      <td>$${t.trade_usdc != null ? t.trade_usdc.toFixed(2) : '--'}</td>
+      <td>${pnl}</td>
+      <td class="${statusClass}">${t.status || 'PENDING'}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+// ── P&L Chart (simple canvas line chart) ──
+
+function drawPnlChart() {
+  const canvas = document.getElementById('pnl-chart');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width;
+  const H = rect.height;
+
+  ctx.clearRect(0, 0, W, H);
+
+  const data = state.pnlHistory;
+  if (data.length < 2) {
+    ctx.fillStyle = '#484f58';
+    ctx.font = '12px Courier New';
+    ctx.fillText('Waiting for data...', W / 2 - 60, H / 2);
+    return;
+  }
+
+  const pnls = data.map(d => d.pnl);
+  const minP = Math.min(0, ...pnls);
+  const maxP = Math.max(0.01, ...pnls);
+  const range = maxP - minP || 0.01;
+  const pad = 10;
+
+  // Zero line
+  const zeroY = H - pad - ((0 - minP) / range) * (H - 2 * pad);
+  ctx.strokeStyle = '#30363d';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad, zeroY);
+  ctx.lineTo(W - pad, zeroY);
+  ctx.stroke();
+
+  // P&L line
+  ctx.strokeStyle = pnls[pnls.length - 1] >= 0 ? '#00c896' : '#ff4d6d';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < data.length; i++) {
+    const x = pad + (i / (data.length - 1)) * (W - 2 * pad);
+    const y = H - pad - ((data[i].pnl - minP) / range) * (H - 2 * pad);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Current value label
+  const last = pnls[pnls.length - 1];
+  ctx.fillStyle = last >= 0 ? '#00c896' : '#ff4d6d';
+  ctx.font = 'bold 12px Courier New';
+  ctx.fillText('$' + last.toFixed(4), W - pad - 80, pad + 14);
+}
+
+// ── API Calls ──
+
+async function apiCall(action) {
+  try {
+    const resp = await fetch('/api/' + action, { method: 'POST' });
+    const data = await resp.json();
+    console.log(action, data);
+  } catch (e) {
+    console.error(action, e);
+  }
+}
+
+// ── Clock ──
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toISOString().substring(0, 19) + ' UTC';
+}
+
+// ── Load trade history on startup ──
+
+async function loadTrades() {
+  try {
+    const resp = await fetch('/api/trades?limit=30');
+    state.trades = await resp.json();
+    updateTradeLog();
+  } catch (e) {}
+}
+
+async function loadPnlHistory() {
+  try {
+    const resp = await fetch('/api/pnl-history?limit=500');
+    const data = await resp.json();
+    state.pnlHistory = data.map(d => ({ time: new Date(d.timestamp).getTime(), pnl: d.total_pnl }));
+    drawPnlChart();
+  } catch (e) {}
+}
+
+// ── Init ──
+
+function init() {
+  initMarketPanels();
+  connectSSE();
+  updateClock();
+  setInterval(updateClock, 1000);
+  loadTrades();
+  loadPnlHistory();
+}
+
+window.addEventListener('load', init);
+window.addEventListener('resize', drawPnlChart);
+</script>
+</body>
+</html>

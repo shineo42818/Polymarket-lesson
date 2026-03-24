@@ -35,15 +35,27 @@ gap_bid opens on Polymarket (our opportunity)
 
 ---
 
-## Phase 0: Instrument Clarification (Before Writing Code)
+## Phase 0: Instrument Clarification — RESOLVED (2026-03-03)
 
-**Problem to resolve first:** Which Chainlink oracle does Polymarket actually use?
+**Finding:** Polymarket uses **Polygon mainnet** with **Chainlink Data Streams** (pull-based, sub-second), NOT Ethereum mainnet legacy Price Feeds.
 
-- Ethereum mainnet BTC/USD: `0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c` (0.5% deviation, 1h heartbeat)
-- Ethereum mainnet ETH/USD: `0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419` (0.5% deviation, 1h heartbeat)
-- Polymarket may use **Polygon** or another chain (cheaper gas), which would have different update frequency
+| Item | Finding |
+|---|---|
+| Chain | Polygon mainnet (Chain ID 137) |
+| Oracle product | Chainlink Data Streams (gated API, sub-second latency) |
+| NOT | Legacy `AnswerUpdated` push feeds on Ethereum mainnet |
+| BTC/USD Data Stream | `0x0003…75b8` (CEX aggregate) — requires Chainlink API key |
+| ETH/USD Data Stream | `0x0003…3ae9` (CEX aggregate) — requires Chainlink API key |
+| Resolution logic | "Resolves Up if BTC price at end ≥ starting price per Chainlink Data Streams" |
 
-**Action:** Check Polymarket's resolution documentation or contract code to confirm the exact oracle contract address and chain used for BTC/ETH updown markets.
+**Implication for `collect_chainlink.py`:** Cannot subscribe to Data Streams without a paid Chainlink API key. **Proxy alternative:** Use Polygon legacy Price Feed (`AnswerUpdated` events), which is publicly accessible and aggregates the same CEX sources (including Binance).
+
+**Proxy oracle contracts (Polygon mainnet):**
+- BTC/USD Proxy: `0xc907E116054Ad103354f2D350FD2514433D57F6f` (0.1% deviation, 60s heartbeat)
+- ETH/USD Proxy: `0xf9680d99d6c9589e2a93a78a04a279e509205945` (0.1% deviation, 60s heartbeat)
+- Block time: ~2s → far more update events than Ethereum mainnet (better for analysis)
+
+**Setup requirement:** Free [Alchemy](https://alchemy.com) account → create a Polygon Mainnet app → copy the WebSocket URL.
 
 ---
 
@@ -86,13 +98,20 @@ Stream URL: wss://data-stream.binance.vision/stream?streams=btcusdt@aggTrade/eth
 
 ### 1B — `collect_chainlink.py` (New Script)
 
-**Source:** Ethereum (or Polygon) WebSocket node → subscribe to `AnswerUpdated` events from the Chainlink aggregator contract.
+**Source:** Polygon mainnet WebSocket node → subscribe to `AnswerUpdated` events from the Chainlink BTC/USD aggregator contract (proxy approach — see Phase 0 for why not Ethereum).
 
-**Requires:** Alchemy or Infura free-tier API key (provides WebSocket access)
+**Requires:** Free [Alchemy](https://alchemy.com) API key → create a **Polygon Mainnet** app → copy the WebSocket URL.
 
 **WebSocket endpoint:**
 ```
-wss://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
+wss://polygon-mainnet.g.alchemy.com/v2/YOUR_KEY
+```
+
+**Startup step — resolve aggregator address from proxy:**
+```python
+# Call aggregator() (selector 0x245a7bfc) on the proxy contract
+# BTC/USD proxy: 0xc907E116054Ad103354f2D350FD2514433D57F6f
+# Returns the underlying aggregator address we must subscribe to
 ```
 
 **Subscription payload (`eth_subscribe logs`):**
@@ -102,7 +121,7 @@ wss://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
   "id": 1,
   "method": "eth_subscribe",
   "params": ["logs", {
-    "address": "<aggregator_address>",
+    "address": "<resolved_aggregator_address>",
     "topics": ["0x0559884fd3a460db3073b7fc896cc77986f16e378210ded43186175bf646fc5f"]
   }]
 }
@@ -112,15 +131,15 @@ wss://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
 - `topics[1]` = `current` (int256, indexed) → price in 8 decimals → divide by 1e8
 - `topics[2]` = `roundId` (uint256, indexed)
 - `data` = `updatedAt` (uint256, non-indexed) → unix seconds (NOTE: second-precision, not ms)
-- `blockNumber` from log → need a second call to get block timestamp for ms-precision
+- `blockNumber` from log → fetch block timestamp via `eth_getBlockByNumber` for Polygon 2s resolution
 
 **What to record per row:**
 
 | Field | Source | Notes |
 |---|---|---|
 | `recv_ns` | `time.time_ns()` local | When our script received the log |
-| `block_number` | log.blockNumber | Ethereum block |
-| `block_timestamp_s` | `eth_getBlockByNumber` | Unix seconds (block time, ~12s resolution) |
+| `block_number` | log.blockNumber | Polygon block |
+| `block_timestamp_s` | `eth_getBlockByNumber` | Unix seconds (block time, ~2s resolution on Polygon) |
 | `updated_at_s` | decoded `data` field | Oracle's own timestamp (seconds) |
 | `price_usd` | topics[1] / 1e8 | Oracle price |
 | `round_id` | topics[2] | Chainlink round ID |
@@ -129,6 +148,8 @@ wss://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
 **Important nuance:** `updatedAt` in the event is seconds-precision. The `recv_ns` local timestamp gives us sub-millisecond precision of when the event arrived at our machine — this is what we use for lag calculation.
 
 **Output:** `data/chainlink_updates_btc.csv`, `data/chainlink_updates_eth.csv`
+
+**Expected update frequency on Polygon:** 0.1% deviation threshold → roughly every 30–120 seconds in active markets (vs Ethereum's 1–5 min). This gives ~30–120 events/hour, meaning 100-event target is achievable in under 4 hours.
 
 ---
 
@@ -309,10 +330,10 @@ Phase 3 → Event Study result
 
 ## Open Questions to Resolve Before Starting
 
-1. **Which chain does Polymarket use for oracle resolution?** (Ethereum mainnet vs Polygon — different update frequencies)
-2. **Do we have access to an Alchemy or Infura API key?** (Required for Chainlink WebSocket subscription)
+1. ~~**Which chain does Polymarket use for oracle resolution?**~~ **RESOLVED:** Polygon mainnet, Chainlink Data Streams (gated). Using Polygon legacy Price Feed as proxy.
+2. **Do we have access to an Alchemy or Infura API key?** (Required for `collect_chainlink.py` — free Alchemy account sufficient, create a **Polygon Mainnet** app)
 3. **How long can we run the collectors?** (Minimum 24h, ideally 72h for statistical power)
-4. **Should we start with BTC only, then add ETH?** (Simpler to debug one symbol first)
+4. ~~**Should we start with BTC only, then add ETH?**~~ **RESOLVED:** Yes, BTC only first.
 
 ---
 
@@ -324,17 +345,25 @@ Phase 3 → Event Study result
 - `@bookTicker` has no exchange timestamp — use `@aggTrade` only
 - Max 1,024 streams per connection; 300 new connections per 5-minute window
 
-### Chainlink Contract Addresses (Ethereum Mainnet)
-- BTC/USD Proxy: `0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c`
-- ETH/USD Proxy: `0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419`
-- Deviation threshold: 0.5% | Heartbeat: 3,600 seconds
+### Chainlink Contract Addresses (Polygon Mainnet — what we actually use)
+- BTC/USD Proxy: `0xc907E116054Ad103354f2D350FD2514433D57F6f` (0.1% deviation, 60s heartbeat)
+- ETH/USD Proxy: `0xf9680d99d6c9589e2a93a78a04a279e509205945` (0.1% deviation, 60s heartbeat)
+- Polygon block time: ~2 seconds → finer time resolution than Ethereum
 - `AnswerUpdated` topic0: `0x0559884fd3a460db3073b7fc896cc77986f16e378210ded43186175bf646fc5f`
-- NOTE: Subscribe to underlying aggregator address, not proxy (get via Etherscan or `aggregatorAddress()` call)
+- Subscribe to underlying aggregator, NOT the proxy — call `aggregator()` (selector `0x245a7bfc`) at startup
+- PolygonScan BTC/USD: https://polygonscan.com/address/0xc907E116054Ad103354f2D350FD2514433D57F6f
 
-### Chainlink Data Streams (Enterprise — Future Option)
+### Chainlink Data Streams (What Polymarket Actually Uses — Gated)
 - WS: `wss://ws.dataengine.chain.link/api/v1/ws?feedIDs=...`
-- Sub-second latency but requires API key from Chainlink (not public)
-- ETH/USD Feed ID: `0x000359843a543ee2fe414dc14c7e7920ef10f4372990b79d6361cdc0dd1ba782`
+- Sub-second latency, pull-based — requires API key from Chainlink (not public)
+- BTC/USD feed ID: `0x0003…75b8` (CEX aggregate, exact ID gated)
+- ETH/USD feed ID: `0x0003…3ae9` (CEX aggregate, exact ID gated)
+- Testnet ETH/USD (public): `0x000359843a543ee2fe414dc14c7e7920ef10f4372990b79d6361cdc0dd1ba782`
+- NOTE: Our proxy approach (legacy Polygon feed) is the best we can do without Chainlink partnership access
+
+### Ethereum Mainnet Addresses (NOT used by Polymarket — kept for reference only)
+- BTC/USD Proxy: `0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c` (0.5% deviation, 1h heartbeat)
+- ETH/USD Proxy: `0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419` (0.5% deviation, 1h heartbeat)
 
 ### Key Python Libraries
 | Task | Library | Function |
