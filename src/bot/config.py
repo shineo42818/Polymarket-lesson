@@ -25,7 +25,7 @@ BINANCE_WS_URL = (
 BINANCE_SYMBOLS = {"btcusdt": "btc", "ethusdt": "eth", "solusdt": "sol"}
 
 # ── Gap thresholds ──
-MIN_GAP_BID = 0.05          # minimum gap_bid to trigger BB arb
+MIN_GAP_BID = 0.07          # minimum gap_bid to trigger BB arb (0.07 ensures hybrid profitability at worst-case 50/50 prices)
 MAX_GAP_BID = 0.15          # maximum gap_bid -- reject near-expiry lopsided markets
 MIN_MAKER_GAP = 0.03        # minimum for signal-driven maker bids
 SANITY_ASK_MAX = 0.90       # skip if both asks > this (stale data)
