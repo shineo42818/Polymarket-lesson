@@ -20,7 +20,7 @@ from typing import Optional
 import httpx
 import websockets
 
-from . import config
+from . import config, db
 from .models import MarketState, SignalState, BotState, ArbTrade
 from .fee import fee_per_share, net_shares
 
@@ -38,12 +38,8 @@ class TradingEngine:
         self.state = BotState.STOPPED
         self.started_at: Optional[float] = None
 
-        # Markets: cache_key -> MarketState
+        # Markets: cache_key -> MarketState (populated in start() from DB or defaults)
         self.markets: dict[str, MarketState] = {}
-        for coin in config.COINS:
-            for mtype in config.MARKET_TYPES:
-                ms = MarketState(coin=coin, market_type=mtype)
-                self.markets[ms.cache_key] = ms
 
         # Token ID -> cache_key mapping (for WS event routing)
         self._token_to_market: dict[str, tuple[str, str]] = {}  # token_id -> (cache_key, "yes"|"no")
@@ -108,6 +104,20 @@ class TradingEngine:
 
         # Initialize order manager
         await self.order_manager.initialize(self)
+
+        # Load active markets from DB (persisted selection), fallback to all 6
+        saved = db.get_config_value("active_markets")
+        if saved:
+            active_keys = [k.strip() for k in saved.split(",") if k.strip()]
+        else:
+            active_keys = [f"{c}_{m}" for c in config.COINS for m in config.MARKET_TYPES]
+        self.markets = {}
+        for key in active_keys:
+            parts = key.split("_", 1)
+            if len(parts) == 2:
+                ms = MarketState(coin=parts[0], market_type=parts[1])
+                self.markets[ms.cache_key] = ms
+        log.info("Active markets: %s", list(self.markets.keys()))
 
         # Fetch initial token IDs
         await self._refresh_all_markets()
@@ -459,6 +469,36 @@ class TradingEngine:
                 last_signal = now
 
             await asyncio.sleep(0.5)
+
+    # ─── Market selector ───
+
+    async def update_active_markets(self, markets: list[str]):
+        """Update active markets at runtime. Cancels trades for removed markets."""
+        current = set(self.markets.keys())
+        new_set = set(markets)
+
+        # Cancel trades and remove deselected markets
+        for key in current - new_set:
+            await self.order_manager.cancel_market_trades(key)
+            self.markets.pop(key, None)
+            log.info("Removed market: %s", key)
+
+        # Add newly selected markets
+        for key in new_set - current:
+            parts = key.split("_", 1)
+            if len(parts) == 2:
+                ms = MarketState(coin=parts[0], market_type=parts[1])
+                self.markets[key] = ms
+                log.info("Added market: %s", key)
+
+        # Persist selection
+        db.set_config_value("active_markets", ",".join(sorted(self.markets.keys())))
+
+        # Reconnect WS with new token subscription
+        if self._poly_ws:
+            await self._poly_ws.close()
+
+        log.info("Active markets updated: %s", sorted(self.markets.keys()))
 
     # ─── Public state accessors ───
 

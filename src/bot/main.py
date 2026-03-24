@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 import os
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
@@ -31,7 +32,13 @@ log = logging.getLogger("bot.main")
 app = FastAPI(title="Polymarket Arb Bot", version="1.0.0")
 
 # ── Initialize components ──
-executor = PaperExecutor()
+if config.MODE == "LIVE":
+    from .live_executor import LiveExecutor
+    executor = LiveExecutor()
+    log.warning("*** LIVE MODE — real money trading ***")
+else:
+    executor = PaperExecutor()
+
 order_manager = OrderManager(executor)
 engine = TradingEngine(order_manager)
 
@@ -183,3 +190,50 @@ async def api_update_config(request: Request):
 @app.get("/api/health")
 async def api_health():
     return {"status": "ok", "engine": engine.state.value}
+
+
+@app.post("/api/reset")
+async def api_reset():
+    """Archive current DB and start a fresh paper trading session."""
+    # Cancel all active trades first
+    await order_manager.cancel_all()
+
+    # Archive the DB file with a timestamp
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H-%M-%S")
+    db_path = config.DB_PATH
+    archive_path = db_path.replace(".db", f"_archive_{ts}.db")
+    if os.path.exists(db_path):
+        os.rename(db_path, archive_path)
+        log.info("Archived DB to %s", archive_path)
+
+    # Create fresh DB and reset in-memory state
+    db.init_db()
+    order_manager.reset_paper()
+
+    # Re-save active markets selection to new DB
+    active = ",".join(sorted(engine.markets.keys()))
+    db.set_config_value("active_markets", active)
+
+    # Broadcast fresh portfolio
+    await engine._broadcast("portfolio", order_manager.get_portfolio_state())
+
+    return {"status": "reset", "archived_to": archive_path}
+
+
+@app.get("/api/markets")
+async def api_get_markets():
+    """Return list of currently active market keys."""
+    return {"active": sorted(engine.markets.keys())}
+
+
+@app.post("/api/markets")
+async def api_set_markets(request: Request):
+    """Update active markets. Cancels trades for removed markets, adds new ones."""
+    body = await request.json()
+    markets = body.get("markets", [])
+    valid = {f"{c}_{m}" for c in config.COINS for m in config.MARKET_TYPES}
+    markets = [m for m in markets if m in valid]
+    if not markets:
+        return JSONResponse({"error": "No valid markets specified"}, status_code=400)
+    await engine.update_active_markets(markets)
+    return {"active": sorted(engine.markets.keys())}

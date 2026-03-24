@@ -444,6 +444,37 @@ class OrderManager:
         for trade in list(self._active_trades.values()):
             await self._settle_trade(trade)
 
+    # ── Market selector ──
+
+    async def cancel_market_trades(self, cache_key: str):
+        """Cancel all active trades for a market (e.g. 'btc_5m'). Full USDC refund, pnl=0."""
+        cancelled = 0
+        for slug, trade in list(self._active_trades.items()):
+            if f"{trade.coin}_{trade.market_type}" == cache_key:
+                await self.executor.cancel_order(trade.yes_order_id)
+                await self.executor.cancel_order(trade.no_order_id)
+                trade.settled_pnl = 0.0
+                trade.status = "EXPIRED"
+                self.usdc_balance += trade.trade_usdc
+                db.update_trade(trade.trade_id, {"status": "EXPIRED", "settled_pnl": 0.0})
+                self._active_trades.pop(slug, None)
+                cancelled += 1
+        if cancelled:
+            db.set_config_value("usdc_balance", str(self.usdc_balance))
+            log.info("Cancelled %d trades for %s, USDC refunded", cancelled, cache_key)
+
+    # ── Paper reset ──
+
+    def reset_paper(self):
+        """Reset paper trading: restore starting balance, clear all trade state."""
+        self.usdc_balance = config.STARTING_CAPITAL
+        self.total_pnl = 0.0
+        self._active_trades.clear()
+        self._settled_trades.clear()
+        db.set_config_value("usdc_balance", str(self.usdc_balance))
+        db.set_config_value("total_pnl", "0.0")
+        log.info("Paper trading reset: balance=$%.2f", self.usdc_balance)
+
     # ── Accessors ──
 
     def get_daily_pnl(self) -> float:
