@@ -50,7 +50,10 @@ CL_DIVERGE_THRESH = 0.003    # 0.3% Binance vs Chainlink divergence
 MAKER_FILL_DELAY_MIN = 2.0      # min seconds before maker fill (paper sim)
 MAKER_FILL_DELAY_MAX = 8.0      # max seconds before maker fill (paper sim)
 MAKER_FILL_PROB = 0.50           # probability a maker order fills (paper sim)
-MIN_HYBRID_PROFIT = 0.005        # min $USD profit to trigger taker leg
+MIN_HYBRID_PROFIT = 0.005        # min $USD profit to trigger taker leg (when > 2 min left)
+HYBRID_URGENCY_S = 120           # below this, lower taker threshold toward break-even
+HYBRID_EMERGENCY_S = 30          # below this, accept small loss to avoid directional exposure
+HYBRID_EMERGENCY_MAX_LOSS = 0.05 # max acceptable taker loss in emergency ($USD per trade)
 
 # ── Timing ──
 PRICE_BROADCAST_INTERVAL = 1.0   # SSE price push every 1s

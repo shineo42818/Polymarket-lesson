@@ -220,6 +220,7 @@ class OrderManager:
             # Poll maker order statuses — pass live ask so paper sim uses as-if-crossed
             cache_key = f"{trade.coin}_{trade.market_type}"
             ms_live = markets.get(cache_key)
+            secs = ms_live.seconds_left if ms_live else 9999
 
             if not trade.yes_filled:
                 yes_ask = ms_live.yes_ask if ms_live else None
@@ -252,9 +253,8 @@ class OrderManager:
             # One leg filled -- try hybrid taker on the other side
             if trade.yes_filled or trade.no_filled:
                 trade.status = "PARTIAL"
-                # Only attempt taker once (don't re-taker every cycle)
                 if trade.execution_mode == "PENDING":
-                    await self._try_hybrid_taker(trade, markets)
+                    await self._try_hybrid_taker(trade, markets, seconds_left=secs)
 
             db.update_trade(trade.trade_id, {
                 "yes_filled": int(trade.yes_filled),
@@ -262,7 +262,16 @@ class OrderManager:
                 "status": trade.status,
             })
 
-    async def _try_hybrid_taker(self, trade: ArbTrade, markets: dict[str, MarketState]):
+    def _min_profit_threshold(self, seconds_left: int) -> float:
+        """Return the minimum hybrid profit required to execute taker, scaled by urgency."""
+        if seconds_left > config.HYBRID_URGENCY_S:
+            return config.MIN_HYBRID_PROFIT        # patient: $0.005
+        elif seconds_left > config.HYBRID_EMERGENCY_S:
+            return 0.0                             # urgent: accept break-even
+        else:
+            return -config.HYBRID_EMERGENCY_MAX_LOSS  # emergency: accept small loss
+
+    async def _try_hybrid_taker(self, trade: ArbTrade, markets: dict[str, MarketState], seconds_left: int = 9999):
         """One maker leg filled. Evaluate and potentially taker the other side.
 
         Profit calculation:
@@ -313,9 +322,10 @@ class OrderManager:
             hybrid_profit, trade.hedged_profit,
         )
 
-        if hybrid_profit < config.MIN_HYBRID_PROFIT:
-            log.info("Hybrid NOT profitable ($%.4f < $%.4f min), waiting for maker fill",
-                     hybrid_profit, config.MIN_HYBRID_PROFIT)
+        threshold = self._min_profit_threshold(seconds_left)
+        if hybrid_profit < threshold:
+            log.info("Hybrid not profitable ($%.4f < $%.4f threshold at %ds left), waiting",
+                     hybrid_profit, threshold, seconds_left)
             return
 
         # Execute taker order
@@ -393,6 +403,10 @@ class OrderManager:
                     should_settle = True
 
             if should_settle:
+                # Last chance: if one leg filled, try emergency taker before writing off as directional loss
+                if trade.status == "PARTIAL" and ms and ms.seconds_left > 0:
+                    log.warning("PARTIAL trade %s at expiry — attempting emergency taker", slug)
+                    await self._try_hybrid_taker(trade, markets, seconds_left=0)
                 await self._settle_trade(trade)
 
     async def _settle_trade(self, trade: ArbTrade):
