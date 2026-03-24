@@ -188,6 +188,7 @@ class ArbTrade:
     # P&L
     hedged_profit: Optional[float] = None
     settled_pnl: Optional[float] = None
+    market_outcome: Optional[str] = None  # "YES", "NO", "VOID", or None
 
     def to_dict(self) -> dict:
         return {
@@ -218,4 +219,5 @@ class ArbTrade:
             "taker_fee": round(self.taker_fee, 6),
             "hedged_profit": round(self.hedged_profit, 4) if self.hedged_profit else None,
             "settled_pnl": round(self.settled_pnl, 4) if self.settled_pnl else None,
+            "market_outcome": self.market_outcome,
         }

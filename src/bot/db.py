@@ -49,7 +49,8 @@ def init_db():
             taker_ask REAL DEFAULT 0,
             taker_fee REAL DEFAULT 0,
             hedged_profit REAL,
-            settled_pnl REAL
+            settled_pnl REAL,
+            market_outcome TEXT
         );
 
         CREATE TABLE IF NOT EXISTS portfolio_snapshots (
@@ -70,6 +71,12 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_trades_status ON trades(status);
         CREATE INDEX IF NOT EXISTS idx_snapshots_ts ON portfolio_snapshots(timestamp);
     """)
+    # Migration: add market_outcome column to existing databases
+    try:
+        conn.execute("ALTER TABLE trades ADD COLUMN market_outcome TEXT")
+        conn.commit()
+    except Exception:
+        pass  # column already exists
     conn.commit()
     conn.close()
 

@@ -285,7 +285,7 @@
       <tr>
         <th>Time</th><th>Market</th><th>Gap</th><th>USDC</th>
         <th>Cost/Pair</th><th>YES Tokens</th><th>NO Tokens</th><th>Payout</th>
-        <th>P&L</th><th>Status</th>
+        <th>P&L</th><th>Status</th><th>Outcome</th>
       </tr>
     </thead>
     <tbody id="trade-tbody"></tbody>
@@ -577,6 +577,7 @@ function updateTradeLog() {
       <td>${payout}</td>
       <td>${pnl}</td>
       <td class="${statusClass}">${t.status || 'PENDING'}</td>
+      <td style="color:${t.market_outcome === 'YES' ? '#00c896' : t.market_outcome === 'NO' ? '#ff4d6d' : '#8b949e'}">${t.market_outcome || '--'}</td>
     `;
     tbody.appendChild(tr);
   }

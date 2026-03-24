@@ -439,39 +439,40 @@ class OrderManager:
             return None
 
     async def _settle_trade(self, trade: ArbTrade):
-        """Settle a trade: cancel unfilled orders, calculate final P&L."""
+        """Settle a trade: cancel unfilled orders, calculate final P&L, record outcome."""
         # Cancel any unfilled maker orders
         if not trade.yes_filled:
             await self.executor.cancel_order(trade.yes_order_id)
         if not trade.no_filled:
             await self.executor.cancel_order(trade.no_order_id)
 
+        # Fetch market outcome for all trades (informational for hedged, P&L-critical for partial)
+        yes_win = await self._fetch_outcome(trade.slug)
+        market_outcome = None
+        if yes_win is not None:
+            market_outcome = "YES" if yes_win > 0.5 else ("VOID" if yes_win == 0.5 else "NO")
+
         if trade.yes_filled and trade.no_filled:
-            # Both legs filled (maker or hybrid): fully hedged, outcome doesn't matter.
-            # One token pays $1, the other $0 — net = num_pairs * $1 - trade_usdc = hedged_profit.
+            # Both legs filled (maker or hybrid): fully hedged, outcome doesn't affect P&L.
             trade.settled_pnl = trade.hedged_profit
             trade.status = "SETTLED"
-            log.info("SETTLED %s [%s]: profit=$%.4f",
-                     trade.slug, trade.execution_mode, trade.settled_pnl)
+            log.info("SETTLED %s [%s] outcome=%s: profit=$%.4f",
+                     trade.slug, trade.execution_mode, market_outcome or "?", trade.settled_pnl)
 
         elif trade.yes_filled or trade.no_filled:
-            # One leg filled — directional exposure. Look up actual market outcome.
+            # One leg filled — directional exposure. Use actual outcome if available.
             filled_side = "YES" if trade.yes_filled else "NO"
             filled_tokens = trade.yes_tokens if trade.yes_filled else trade.no_tokens
             filled_usdc = trade.yes_usdc if trade.yes_filled else trade.no_usdc
 
-            yes_win = await self._fetch_outcome(trade.slug)
-
             if yes_win is not None:
-                # Outcome known: calculate real P&L
                 win_price = yes_win if trade.yes_filled else (1.0 - yes_win)
                 trade.settled_pnl = round(filled_tokens * win_price - filled_usdc, 4)
                 trade.status = "SETTLED"
-                winner = "YES" if yes_win > 0.5 else ("VOID" if yes_win == 0.5 else "NO")
                 log.info("SETTLED %s [PARTIAL %s filled, %s won]: pnl=$%.4f",
-                         trade.slug, filled_side, winner, trade.settled_pnl)
+                         trade.slug, filled_side, market_outcome, trade.settled_pnl)
             else:
-                # Outcome not yet known: conservative worst-case assumption
+                # Outcome not yet known: conservative worst-case
                 trade.settled_pnl = -filled_usdc
                 trade.status = "EXPIRED"
                 log.warning("EXPIRED %s: only %s filled, outcome unknown (worst-case pnl=$%.4f)",
@@ -481,7 +482,8 @@ class OrderManager:
             # Neither filled: full refund
             trade.settled_pnl = 0.0
             trade.status = "EXPIRED"
-            log.info("EXPIRED %s: no fills, USDC refunded", trade.slug)
+            log.info("EXPIRED %s: no fills, USDC refunded (outcome=%s)",
+                     trade.slug, market_outcome or "?")
 
         # Update balance
         self.usdc_balance += trade.trade_usdc + (trade.settled_pnl or 0.0)
@@ -490,6 +492,7 @@ class OrderManager:
         db.update_trade(trade.trade_id, {
             "status": trade.status,
             "settled_pnl": trade.settled_pnl,
+            "market_outcome": market_outcome,
         })
         db.set_config_value("usdc_balance", str(self.usdc_balance))
         db.set_config_value("total_pnl", str(self.total_pnl))
