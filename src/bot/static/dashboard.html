@@ -559,8 +559,10 @@ function updateTradeLog() {
       ? (parseFloat(costPerPair) < 0.95 ? '#00c896' : parseFloat(costPerPair) < 1.0 ? '#ffa500' : '#ff4d6d')
       : '#8b949e';
 
-    const yesTok = t.yes_tokens != null ? t.yes_tokens.toFixed(2) : '--';
-    const noTok  = t.no_tokens  != null ? t.no_tokens.toFixed(2)  : '--';
+    const yesFilled = t.yes_filled ? (t.yes_tokens || 0) : 0;
+    const noFilled  = t.no_filled  ? (t.no_tokens  || 0) : 0;
+    const yesTok = t.yes_tokens != null ? yesFilled.toFixed(2) + '/' + t.yes_tokens.toFixed(2) : '--';
+    const noTok  = t.no_tokens  != null ? noFilled.toFixed(2)  + '/' + t.no_tokens.toFixed(2)  : '--';
     const payout = (t.yes_tokens != null && t.no_tokens != null)
       ? '$' + Math.min(t.yes_tokens, t.no_tokens).toFixed(4) : '--';
 

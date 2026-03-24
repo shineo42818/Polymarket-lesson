@@ -48,8 +48,10 @@ class OrderExecutor(ABC):
         """Cancel an open order."""
 
     @abstractmethod
-    async def get_order_status(self, order_id: str) -> OrderStatus:
-        """Check if order is OPEN, FILLED, CANCELLED, etc."""
+    async def get_order_status(self, order_id: str, current_price: Optional[float] = None) -> OrderStatus:
+        """Check if order is OPEN, FILLED, CANCELLED, etc.
+        current_price: live market ask for the token (used by paper sim for as-if-crossed logic).
+        """
 
     @abstractmethod
     async def get_usdc_balance(self) -> float:
@@ -215,15 +217,20 @@ class OrderManager:
             if trade.status not in ("PENDING", "PARTIAL"):
                 continue
 
-            # Poll maker order statuses
+            # Poll maker order statuses — pass live ask so paper sim uses as-if-crossed
+            cache_key = f"{trade.coin}_{trade.market_type}"
+            ms_live = markets.get(cache_key)
+
             if not trade.yes_filled:
-                status = await self.executor.get_order_status(trade.yes_order_id)
+                yes_ask = ms_live.yes_ask if ms_live else None
+                status = await self.executor.get_order_status(trade.yes_order_id, current_price=yes_ask)
                 if status == OrderStatus.FILLED:
                     trade.yes_filled = True
                     log.info("YES maker FILLED for %s", slug)
 
             if not trade.no_filled:
-                status = await self.executor.get_order_status(trade.no_order_id)
+                no_ask = ms_live.no_ask if ms_live else None
+                status = await self.executor.get_order_status(trade.no_order_id, current_price=no_ask)
                 if status == OrderStatus.FILLED:
                     trade.no_filled = True
                     log.info("NO maker FILLED for %s", slug)

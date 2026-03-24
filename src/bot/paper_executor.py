@@ -9,9 +9,9 @@ Hybrid strategy simulation:
 """
 
 import logging
-import random
 import time
 import uuid
+from typing import Optional
 
 from .order_manager import OrderExecutor
 from .models import OrderStatus, PaperOrder
@@ -34,17 +34,10 @@ class PaperExecutor(OrderExecutor):
     async def place_limit_buy(self, token_id: str, price: float, size_usdc: float) -> str:
         """Create a simulated MAKER limit buy order.
 
-        The order does NOT fill instantly. It fills after a random delay
-        (MAKER_FILL_DELAY_MIN to MAKER_FILL_DELAY_MAX), and only if the
-        random roll passes MAKER_FILL_PROB. This simulates queue position
-        in the order book.
+        Fills when the live market ask drops to or below the bid price (as-if-crossed).
+        No random coin flip — only fills when the market would actually cross the order.
         """
         order_id = f"paper_{uuid.uuid4().hex[:12]}"
-        now = time.time()
-
-        # Decide at creation whether this order will fill
-        will_fill = random.random() < config.MAKER_FILL_PROB
-        fill_delay = random.uniform(config.MAKER_FILL_DELAY_MIN, config.MAKER_FILL_DELAY_MAX)
 
         order = PaperOrder(
             order_id=order_id,
@@ -54,14 +47,10 @@ class PaperExecutor(OrderExecutor):
             price=price,
             size=size_usdc,
             status=OrderStatus.OPEN,
-            will_fill=will_fill,
-            fill_after=now + fill_delay,
         )
         self._orders[order_id] = order
-        log.info("Maker order placed: %s token=%s..%s price=%.3f usdc=$%.2f "
-                 "fill_in=%.1fs will_fill=%s",
-                 order_id, token_id[:8], token_id[-4:], price, size_usdc,
-                 fill_delay, will_fill)
+        log.info("Maker order placed: %s token=%s..%s price=%.3f usdc=$%.2f",
+                 order_id, token_id[:8], token_id[-4:], price, size_usdc)
         return order_id
 
     async def place_market_buy(self, token_id: str, price: float, size_usdc: float) -> str:
@@ -93,27 +82,23 @@ class PaperExecutor(OrderExecutor):
             return True
         return False
 
-    async def get_order_status(self, order_id: str) -> OrderStatus:
+    async def get_order_status(self, order_id: str, current_price: Optional[float] = None) -> OrderStatus:
         """Return the current status of a paper order.
 
-        For maker orders, transitions OPEN -> FILLED when:
-          1. Current time > fill_after (delay elapsed)
-          2. will_fill == True (probability roll passed at creation)
+        For maker (LIMIT) orders: fills when current_price (live ask) crosses
+        at or below the order's bid price (as-if-crossed). If no price is
+        available the order stays OPEN until cancelled.
         """
         order = self._orders.get(order_id)
         if not order:
             return OrderStatus.CANCELLED
 
-        # Check if a pending maker order should now fill
         if order.status == OrderStatus.OPEN and order.order_type == "LIMIT":
-            now = time.time()
-            if now >= order.fill_after:
-                if order.will_fill:
-                    order.status = OrderStatus.FILLED
-                    order.filled_at = now
-                    log.info("Maker order FILLED (after %.1fs): %s",
-                             now - order.created_at, order.order_id)
-                # If will_fill=False, order stays OPEN until cancelled
+            if current_price is not None and current_price <= order.price:
+                order.status = OrderStatus.FILLED
+                order.filled_at = time.time()
+                log.info("Maker order FILLED (ask=%.3f <= bid=%.3f): %s",
+                         current_price, order.price, order.order_id)
 
         return order.status
 

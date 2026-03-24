@@ -104,7 +104,7 @@ class LiveExecutor(OrderExecutor):
             log.warning("Cancel failed for %s: %s", order_id, e)
             return False
 
-    async def get_order_status(self, order_id: str) -> OrderStatus:
+    async def get_order_status(self, order_id: str, current_price=None) -> OrderStatus:
         try:
             resp = self._client.get_order(order_id)
             status = resp.get("status", "").upper()
