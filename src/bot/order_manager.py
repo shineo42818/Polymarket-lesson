@@ -376,6 +376,14 @@ class OrderManager:
                 should_settle = True
             elif ms and ms.seconds_left < config.CANCEL_BEFORE_CLOSE:
                 should_settle = True
+            else:
+                # Fallback: expire by age in case slug rotation detection fails
+                interval = 300 if trade.market_type == "5m" else 900
+                trade_age = (datetime.now(timezone.utc) -
+                             datetime.fromisoformat(trade.timestamp)).total_seconds()
+                if trade_age > interval + 30:
+                    log.warning("Force-expiring stale trade %s (age=%.0fs)", slug, trade_age)
+                    should_settle = True
 
             if should_settle:
                 await self._settle_trade(trade)
