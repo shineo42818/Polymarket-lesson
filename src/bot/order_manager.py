@@ -14,11 +14,14 @@ Strategy flow:
 """
 
 import asyncio
+import json
 import logging
 import time
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from typing import Optional
+
+import httpx
 
 from . import config, db
 from .models import MarketState, ArbTrade, OrderStatus
@@ -409,6 +412,32 @@ class OrderManager:
                     await self._try_hybrid_taker(trade, markets, seconds_left=0)
                 await self._settle_trade(trade)
 
+    async def _fetch_outcome(self, slug: str) -> Optional[float]:
+        """Query Gamma API for the market's resolved YES price.
+
+        Returns:
+          1.0  — YES won
+          0.0  — NO won
+          0.5  — market voided
+          None — not yet resolved or API error
+        """
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.get(config.GAMMA_API_URL, params={"slug": slug})
+                data = resp.json()
+                if not data:
+                    return None
+                market = data[0]
+                if not market.get("resolved", False):
+                    return None
+                prices = json.loads(market.get("outcomePrices", "[]"))
+                if len(prices) < 2:
+                    return None
+                return float(prices[0])  # YES price: 1.0=YES won, 0.0=NO won
+        except Exception as e:
+            log.warning("fetch_outcome(%s): %s", slug, e)
+            return None
+
     async def _settle_trade(self, trade: ArbTrade):
         """Settle a trade: cancel unfilled orders, calculate final P&L."""
         # Cancel any unfilled maker orders
@@ -418,20 +447,36 @@ class OrderManager:
             await self.executor.cancel_order(trade.no_order_id)
 
         if trade.yes_filled and trade.no_filled:
-            # Both filled (maker or hybrid): profit is locked
+            # Both legs filled (maker or hybrid): fully hedged, outcome doesn't matter.
+            # One token pays $1, the other $0 — net = num_pairs * $1 - trade_usdc = hedged_profit.
             trade.settled_pnl = trade.hedged_profit
             trade.status = "SETTLED"
             log.info("SETTLED %s [%s]: profit=$%.4f",
                      trade.slug, trade.execution_mode, trade.settled_pnl)
+
         elif trade.yes_filled or trade.no_filled:
-            # One maker filled, taker was not profitable -- directional exposure.
-            # Worst case: the filled token goes to $0, lose the USDC spent on it.
+            # One leg filled — directional exposure. Look up actual market outcome.
             filled_side = "YES" if trade.yes_filled else "NO"
+            filled_tokens = trade.yes_tokens if trade.yes_filled else trade.no_tokens
             filled_usdc = trade.yes_usdc if trade.yes_filled else trade.no_usdc
-            trade.settled_pnl = -filled_usdc
-            trade.status = "EXPIRED"
-            log.warning("EXPIRED %s: only %s filled, directional loss=$%.4f",
-                        trade.slug, filled_side, trade.settled_pnl)
+
+            yes_win = await self._fetch_outcome(trade.slug)
+
+            if yes_win is not None:
+                # Outcome known: calculate real P&L
+                win_price = yes_win if trade.yes_filled else (1.0 - yes_win)
+                trade.settled_pnl = round(filled_tokens * win_price - filled_usdc, 4)
+                trade.status = "SETTLED"
+                winner = "YES" if yes_win > 0.5 else ("VOID" if yes_win == 0.5 else "NO")
+                log.info("SETTLED %s [PARTIAL %s filled, %s won]: pnl=$%.4f",
+                         trade.slug, filled_side, winner, trade.settled_pnl)
+            else:
+                # Outcome not yet known: conservative worst-case assumption
+                trade.settled_pnl = -filled_usdc
+                trade.status = "EXPIRED"
+                log.warning("EXPIRED %s: only %s filled, outcome unknown (worst-case pnl=$%.4f)",
+                            trade.slug, filled_side, trade.settled_pnl)
+
         else:
             # Neither filled: full refund
             trade.settled_pnl = 0.0
