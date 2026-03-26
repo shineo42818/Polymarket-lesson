@@ -657,13 +657,27 @@ async function confirmReset() {
   try {
     const resp = await fetch('/api/reset', { method: 'POST' });
     const data = await resp.json();
+
+    // Clear all UI state immediately
     state.trades = [];
+    state.portfolio = {};
     state.pnlHistory = [];
     updateTradeLog();
     drawPnlChart();
+
+    // Directly reset stats bar — don't wait for SSE
+    document.getElementById('stat-balance').textContent = '$100.00';
+    document.getElementById('stat-balance').className = 'stat-value neutral';
+    ['stat-pnl', 'stat-daily'].forEach(id => {
+      document.getElementById(id).textContent = '$0.0000';
+      document.getElementById(id).className = 'stat-value neutral';
+    });
+    document.getElementById('stat-positions').textContent = '0';
+
     alert('Reset complete. Archived to: ' + (data.archived_to || 'N/A'));
   } catch (e) {
     console.error('reset', e);
+    alert('Reset failed — check console for errors.');
   }
 }
 
