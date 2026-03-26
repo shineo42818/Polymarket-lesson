@@ -51,6 +51,8 @@ async def startup():
     log.info("Database initialized at %s", config.DB_PATH)
     log.info("Bot mode: %s", config.MODE)
     log.info("Starting capital: $%.2f", config.STARTING_CAPITAL)
+    await engine.start()
+    log.info("Engine auto-started")
 
 
 @app.on_event("shutdown")

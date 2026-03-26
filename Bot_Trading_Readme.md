@@ -16,7 +16,7 @@ http://34.86.131.153:8000
 | Cost | ~$14/month ($300 credit = ~21 months) |
 
 ## SSH into VM
-
+on
 ```bash
 gcloud compute ssh polymarket-bot --zone=us-east4-a
 ```

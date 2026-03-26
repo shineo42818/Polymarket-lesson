@@ -71,12 +71,19 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_trades_status ON trades(status);
         CREATE INDEX IF NOT EXISTS idx_snapshots_ts ON portfolio_snapshots(timestamp);
     """)
-    # Migration: add market_outcome column to existing databases
-    try:
-        conn.execute("ALTER TABLE trades ADD COLUMN market_outcome TEXT")
-        conn.commit()
-    except Exception:
-        pass  # column already exists
+    # Migrations: add columns to existing databases (idempotent)
+    for col_def in [
+        "ALTER TABLE trades ADD COLUMN market_outcome TEXT",
+        "ALTER TABLE trades ADD COLUMN execution_mode TEXT DEFAULT 'PENDING'",
+        "ALTER TABLE trades ADD COLUMN taker_leg TEXT DEFAULT ''",
+        "ALTER TABLE trades ADD COLUMN taker_ask REAL DEFAULT 0",
+        "ALTER TABLE trades ADD COLUMN taker_fee REAL DEFAULT 0",
+    ]:
+        try:
+            conn.execute(col_def)
+            conn.commit()
+        except Exception:
+            pass  # column already exists
     conn.commit()
     conn.close()
 

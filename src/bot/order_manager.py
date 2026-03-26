@@ -249,6 +249,7 @@ class OrderManager:
                 db.update_trade(trade.trade_id, {
                     "yes_filled": 1, "no_filled": 1,
                     "status": "FILLED",
+                    "execution_mode": "MAKER",
                 })
                 asyncio.ensure_future(telegram.send_trade_alert(trade.to_dict()))
                 continue
@@ -371,6 +372,10 @@ class OrderManager:
                 "yes_filled": 1,
                 "no_filled": 1,
                 "status": "FILLED",
+                "execution_mode": "HYBRID",
+                "taker_leg": taker_side,
+                "taker_ask": current_ask,
+                "taker_fee": fee_rate,
                 "hedged_profit": hybrid_profit,
                 "fee_yes": trade.fee_yes,
                 "fee_no": trade.fee_no,
@@ -428,12 +433,13 @@ class OrderManager:
                 if not data:
                     return None
                 market = data[0]
-                if not market.get("resolved", False):
-                    return None
                 prices = json.loads(market.get("outcomePrices", "[]"))
                 if len(prices) < 2:
                     return None
-                return float(prices[0])  # YES price: 1.0=YES won, 0.0=NO won
+                yes_price = float(prices[0])
+                if yes_price not in (0.0, 0.5, 1.0):
+                    return None  # market still live
+                return yes_price  # 1.0=YES won, 0.0=NO won, 0.5=VOID
         except Exception as e:
             log.warning("fetch_outcome(%s): %s", slug, e)
             return None
@@ -446,8 +452,22 @@ class OrderManager:
         if not trade.no_filled:
             await self.executor.cancel_order(trade.no_order_id)
 
-        # Fetch market outcome for all trades (informational for hedged, P&L-critical for partial)
+        # Fetch market outcome.
+        # For partial fills, Polymarket may take up to ~2 min to resolve after close.
+        # Retry every 10s for up to 2 minutes before giving up.
+        is_partial = (trade.yes_filled != trade.no_filled)
         yes_win = await self._fetch_outcome(trade.slug)
+        if yes_win is None and is_partial:
+            log.info("Outcome not yet available for partial fill %s — polling (max 2 min)...", trade.slug)
+            for attempt in range(12):
+                await asyncio.sleep(10)
+                yes_win = await self._fetch_outcome(trade.slug)
+                if yes_win is not None:
+                    log.info("Outcome resolved after %ds: %s", (attempt + 1) * 10, trade.slug)
+                    break
+            if yes_win is None:
+                log.warning("Outcome still unknown after 2 min for %s — using worst-case", trade.slug)
+
         market_outcome = None
         if yes_win is not None:
             market_outcome = "YES" if yes_win > 0.5 else ("VOID" if yes_win == 0.5 else "NO")
@@ -460,7 +480,7 @@ class OrderManager:
                      trade.slug, trade.execution_mode, market_outcome or "?", trade.settled_pnl)
 
         elif trade.yes_filled or trade.no_filled:
-            # One leg filled — directional exposure. Use actual outcome if available.
+            # One leg filled — directional exposure. Use actual outcome.
             filled_side = "YES" if trade.yes_filled else "NO"
             filled_tokens = trade.yes_tokens if trade.yes_filled else trade.no_tokens
             filled_usdc = trade.yes_usdc if trade.yes_filled else trade.no_usdc
@@ -472,10 +492,10 @@ class OrderManager:
                 log.info("SETTLED %s [PARTIAL %s filled, %s won]: pnl=$%.4f",
                          trade.slug, filled_side, market_outcome, trade.settled_pnl)
             else:
-                # Outcome not yet known: conservative worst-case
+                # Outcome still unknown after retries: worst-case write-off
                 trade.settled_pnl = -filled_usdc
                 trade.status = "EXPIRED"
-                log.warning("EXPIRED %s: only %s filled, outcome unknown (worst-case pnl=$%.4f)",
+                log.warning("EXPIRED %s: only %s filled, outcome unknown after retries (worst-case pnl=$%.4f)",
                             trade.slug, filled_side, trade.settled_pnl)
 
         else:
