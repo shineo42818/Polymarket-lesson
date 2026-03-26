@@ -459,12 +459,15 @@ class OrderManager:
         yes_win = await self._fetch_outcome(trade.slug)
         if yes_win is None and is_partial:
             log.info("Outcome not yet available for partial fill %s — polling every 15s (max 10 min)...", trade.slug)
-            for attempt in range(40):
-                await asyncio.sleep(15)
-                yes_win = await self._fetch_outcome(trade.slug)
-                if yes_win is not None:
-                    log.info("Outcome resolved after %ds: %s", (attempt + 1) * 15, trade.slug)
-                    break
+            try:
+                for attempt in range(40):
+                    await asyncio.sleep(15)
+                    yes_win = await self._fetch_outcome(trade.slug)
+                    if yes_win is not None:
+                        log.info("Outcome resolved after %ds: %s", (attempt + 1) * 15, trade.slug)
+                        break
+            except asyncio.CancelledError:
+                log.warning("Outcome polling cancelled for %s — using worst-case", trade.slug)
             if yes_win is None:
                 log.warning("Outcome still unknown after 10 min for %s — using worst-case", trade.slug)
 
