@@ -203,8 +203,12 @@
 <!-- STATS BAR -->
 <div id="stats-bar">
   <div class="stat">
-    <span class="stat-label">USDC Balance</span>
+    <span class="stat-label">Free USDC</span>
     <span class="stat-value neutral" id="stat-balance">$100.00</span>
+  </div>
+  <div class="stat">
+    <span class="stat-label">Total USDC</span>
+    <span class="stat-value neutral" id="stat-total">$100.00</span>
   </div>
   <div class="stat">
     <span class="stat-label">Total P&L</span>
@@ -467,6 +471,10 @@ function updatePortfolio() {
 
   if (p.usdc_balance != null) {
     document.getElementById('stat-balance').textContent = '$' + p.usdc_balance.toFixed(2);
+    // Total = free + locked in open trades
+    const locked = (p.active_trades || []).reduce((s, t) => s + (t.trade_usdc || 0), 0);
+    const total = p.usdc_balance + locked;
+    document.getElementById('stat-total').textContent = '$' + total.toFixed(2);
   }
   if (p.total_pnl != null) setStatVal('stat-pnl', p.total_pnl, '$');
   if (p.daily_pnl != null) setStatVal('stat-daily', p.daily_pnl, '$');
@@ -668,6 +676,8 @@ async function confirmReset() {
     // Directly reset stats bar — don't wait for SSE
     document.getElementById('stat-balance').textContent = '$100.00';
     document.getElementById('stat-balance').className = 'stat-value neutral';
+    document.getElementById('stat-total').textContent = '$100.00';
+    document.getElementById('stat-total').className = 'stat-value neutral';
     ['stat-pnl', 'stat-daily'].forEach(id => {
       document.getElementById(id).textContent = '$0.0000';
       document.getElementById(id).className = 'stat-value neutral';
