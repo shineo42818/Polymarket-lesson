@@ -1,16 +1,18 @@
-# Polymarket BTC/ETH Arbitrage Strategy
+# Polymarket BTC/ETH/SOL Arbitrage Strategy
 
 ## 1. Market Structure
 
-Polymarket operates binary prediction markets on 5-minute and 15-minute BTC and ETH price moves. Each market resolves to either $1.00 (winner) or $0.00 (loser) per token.
+Polymarket operates binary prediction markets on 5-minute and 15-minute BTC, ETH, and SOL price moves. Each market resolves to either $1.00 (winner) or $0.00 (loser) per token.
 
-### Covered Markets (4 total)
+### Covered Markets (6 total)
 | Market Key | Coin | Interval | Slug Pattern |
 |------------|------|----------|--------------|
 | `btc_5m`   | BTC  | 5 min    | `btc-updown-5m-{ts}` |
 | `btc_15m`  | BTC  | 15 min   | `btc-updown-15m-{ts}` |
 | `eth_5m`   | ETH  | 5 min    | `eth-updown-5m-{ts}` |
 | `eth_15m`  | ETH  | 15 min   | `eth-updown-15m-{ts}` |
+| `sol_5m`   | SOL  | 5 min    | `sol-updown-5m-{ts}` |
+| `sol_15m`  | SOL  | 15 min   | `sol-updown-15m-{ts}` |
 
 ### Slug Calculation
 ```
@@ -299,6 +301,7 @@ When Binance price moves quickly, Polymarket market makers widen spreads or temp
 Source: Ethereum mainnet RPC (https://cloudflare-eth.com)
 BTC/USD:  0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88
 ETH/USD:  0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419
+SOL/USD:  0x4ffC43a60e009B551865A93d232E33Fce9f01507
 Method:   latestRoundData() → selector 0xfeaf968c
 Response: [roundId, answer (8 dec), startedAt, updatedAt, answeredInRound]
 
@@ -338,6 +341,7 @@ P&L calculation uses bid-based avg cost (same hedging formula as taker)
 [SIGNAL PANEL — full-width bar, amber background when any signal active]
   BTC | Binance: $XXXXX | 30s move: +0.31% [SIGNAL] | CL: $XXXXX | Lag: 42s [STALE]
   ETH | Binance: $XXXXX | 30s move: +0.10%           | CL: $XXXXX | Lag: 8s
+  SOL | Binance: $XXXXX | 30s move: +0.10%           | CL: $XXXXX | Lag: 8s
 
 [MARKET PANELS]
   GAP (BID) ★ — primary column, green if >= 0.03

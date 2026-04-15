@@ -1,79 +1,80 @@
-# CLAUDE.md — Polymarket Arbitrage Research
+# CLAUDE.md — Polymarket Trading Bots
 
 ## Project Overview
-Research project studying arbitrage opportunities on Polymarket's 5m/15m BTC/ETH/SOL binary prediction markets. Core hypothesis: YES + NO token prices sometimes sum to less than $1.00, creating a risk-free profit opportunity.
+Two automated trading bots for Polymarket's 5m/15m BTC/ETH/SOL binary prediction markets:
+1. **Arb Bot** (`src/bot/`) — Paper/live arbitrage bot exploiting gap_ask/gap_bid mispricing throughout each market cycle. Deployed on GCP.
+2. **Sniper Bot** (`src/sniper/`) — Live bot targeting thin order books in the first 10-20 seconds of each market cycle. (In development — see `Sniper_Architecture.md`)
 
 ## Key Concepts
 - **gap_ask** = `1.0 - yes_ask - no_ask` — market-order gap (AA scenario, threshold ≥ 0.05)
-- **gap_bid** = `1.0 - yes_bid - no_bid` — limit-order gap (BB scenario, whale strategy)
-- **Sanity filter**: skip if `yes_ask > 0.90 AND no_ask > 0.90` (stale data near close)
-- **Fee formula**: `fee_per_share(p) = 0.25 × (p × (1-p))²` — max 1.5625% at p=0.50
+- **gap_bid** = `1.0 - yes_bid - no_bid` — limit-order gap (BB scenario, maker strategy)
+- **Fee formula**: taker = `0.25 × (p × (1-p))²` (max 1.5625% at p=0.50), maker = 0%
 - **Slug format**: `{coin}-updown-{type}-{unix_ts}` where `ts = floor(now/interval)*interval`
 
 ## Project Structure
 ```
 Polymarket lesson/
-├── src/arbitrage/
-│   ├── gap_monitor.py          # WebSocket gap monitor (BTC/ETH/SOL, 5m/15m) — MAIN SCRIPT
-│   ├── whale_monitor.py        # Tracks known whale wallets via Polymarket API
-│   ├── analyze_gap_log.py      # Offline analysis of data/gap_log.csv
-│   ├── analyze_whale_patterns.py  # VWAP + fee analysis on whale trades
-│   ├── analyze_signal.py       # Binance signal analysis
-│   ├── collect_binance.py      # Binance price data collector
-│   ├── collect_polymarket.py   # Polymarket price collector (legacy, REST-based)
-│   ├── profit_calculator.py    # Standalone profit calculator
-│   └── fullrun.py              # Runs gap_monitor + whale_monitor together
+├── src/
+│   ├── bot/                        # Arb bot (paper + live)
+│   │   ├── main.py                 # FastAPI app + SSE dashboard (port 8000)
+│   │   ├── engine.py               # Market rotation, WS connection, slug management
+│   │   ├── order_manager.py        # Trade lifecycle: place → fill → settle
+│   │   ├── paper_executor.py       # Paper trading (as-if-crossed matching)
+│   │   ├── live_executor.py        # Live trading via py-clob-client
+│   │   ├── fee.py                  # Fee model (maker 0%, taker formula)
+│   │   ├── db.py                   # SQLite trades DB
+│   │   ├── config.py               # Bot configuration
+│   │   ├── models.py               # Data models
+│   │   └── static/dashboard.html   # Web dashboard
+│   └── sniper/                     # Sniper bot (IN DEVELOPMENT)
+│       └── (see Sniper_Architecture.md for planned modules)
 ├── data/
-│   ├── gap_log.csv             # Live gap observations (written by gap_monitor.py)
-│   ├── whale_log.csv           # Whale trade log (written by whale_monitor.py)
-│   └── *.csv                   # Historical signal + binance data
-├── mock_trader.html            # Standalone HTML mock trader — open in browser, no server needed
-├── strategy.md                 # Authoritative arbitrage strategy documentation
-├── ARBITRAGE_RESEARCH.md       # Original research hypothesis
-├── IMPLEMENTATION_PLAN.md      # System build plan (Sessions 1–5)
-└── venv/                       # Python virtual environment
+│   └── bot.db                      # Active arb bot database
+├── strategy.md                     # Arb strategy documentation
+├── Blueprint.md                    # Original LLM-bot architecture reference
+├── Sniper_Architecture.md          # Sniper bot architecture & build plan
+├── requirements.txt
+├── venv/
+└── archive/                        # Archived research phase files
+    ├── data/                       # Old CSVs, JSONs, logs (44 files)
+    ├── src_research/               # gap_monitor, whale_monitor, analyzers, collectors
+    ├── src_scripts/                # One-off API exploration scripts
+    ├── docs/                       # Old docs (ARBITRAGE_RESEARCH, IMPLEMENTATION_PLAN, etc.)
+    ├── charts/                     # Signal analysis PNGs
+    ├── deploy/                     # Old GCP deploy scripts
+    ├── bot_db_archives/            # Archived bot.db snapshots
+    └── mock_trader.html            # HTML mock trader
 ```
 
-## Running the Python Scripts
+## Running the Bots
 
 ### Prerequisites
 ```bash
-# Activate venv (from project root)
 source venv/Scripts/activate   # Windows Git Bash
-# or
-venv\Scripts\activate          # Windows CMD/PowerShell
 ```
 
-### Main Scripts
+### Arb Bot
 ```bash
-# Real-time gap monitor (WebSocket, runs until Ctrl+C or pilot duration)
-python src/arbitrage/gap_monitor.py
+# Local
+python -m src.bot.main
+# Dashboard: http://localhost:8000
 
-# Whale wallet tracker
-python src/arbitrage/whale_monitor.py
-
-# Run both simultaneously (separate terminals recommended)
-python src/arbitrage/fullrun.py
-
-# Offline analysis (run after collecting data)
-python src/arbitrage/analyze_gap_log.py
-python src/arbitrage/analyze_whale_patterns.py
+# GCP (systemd)
+sudo systemctl start polymarket-bot
+# Dashboard: http://34.86.131.153:8000
 ```
 
-### gap_monitor.py Configuration
-- `PILOT_MODE = True` — runs for `PILOT_DURATION_HOURS` then stops
-- `PILOT_MODE = False` — runs indefinitely (production mode)
-- `MIN_PROFITABLE_GAP = 0.05` — gap threshold to flag an opportunity
-- `LOG_INTERVAL_SECONDS = 10` — dashboard refresh rate (CSV writes are event-driven)
-
-## Running the HTML Mock Trader
-Open `mock_trader.html` directly in any modern browser — no server required.
-See the "How to Run" section in strategy.md for details.
+### Sniper Bot (planned)
+```bash
+python -m src.sniper.main
+# Dashboard: http://localhost:8001
+```
 
 ## Critical API Endpoints
 - **WebSocket**: `wss://ws-subscriptions-clob.polymarket.com/ws/market`
-- **Token IDs**: `GET https://gamma-api.polymarket.com/markets?slug={slug}`
-- `clobTokenIds[0]` = YES token, `[1]` = NO token
+- **Gamma API**: `GET https://gamma-api.polymarket.com/markets?slug={slug}`
+  - `clobTokenIds[0]` = YES token, `[1]` = NO token
+- **CLOB API**: `https://clob.polymarket.com` (via py-clob-client)
 
 ## WebSocket Event Formats
 ```
@@ -87,20 +88,16 @@ price_change event:
 ```
 
 ## Important Constraints
-- Do **not** modify `gap_monitor.py` without re-checking the WebSocket event format comments (verified 2026-03-01)
-- `mock_trader.html` fires trades only on `gap_ask >= 0.05` (AA scenario); `gap_bid` is informational only
-- The mock trader covers **BTC and ETH only** (4 markets) — no SOL
+- **Outcome detection is unreliable**: Gamma API `resolved` field is always None. Current workaround infers from `outcomePrices` (0.0 or 1.0 = resolved), but this takes 7-9 minutes and is fragile. **Must find a better method** — e.g., on-chain resolution event, CLOB API settlement status, or Polygon contract call.
+- Current outcome polling: every 15s for up to 10 minutes (40 attempts). Works but is slow and wastes API calls.
+- py-clob-client is synchronous — always wrap in `asyncio.to_thread()`
+- Minimum order size: $5 USDC per leg
 - One trade per slug per market (no position stacking)
-- Market rotation must reconnect the WebSocket with fresh token IDs
 
-## Open Research Items
-- **Maker bid strategy not yet executed in live/paper trading** — the mock trader UI and logic are built (Section 12 in strategy.md), but no real maker bids have been placed and no paper trading results exist yet.
-- **Binance signal research pending review** — the signal thresholds (0.3% momentum in 30s, CL lag > 30s) are based on the implementation plan assumptions, not on empirical analysis of `data/` files. Before going live, run `analyze_signal.py` to validate whether these thresholds actually predict `gap_bid` openings in historical data.
-
-## Data Schema — gap_log.csv
-```
-recorded_at, coin, market_type, slug, market_closes, seconds_left,
-yes_price (= yes_ask), no_price (= no_ask), gap (= gap_ask), gap_bid,
-gap_duration_ms, arb_size_usd, opportunity
-```
-Note: `yes_price`/`no_price` column names kept for CSV compatibility — they hold ask prices.
+## GCP Deployment
+- **Current VM**: `polymarket-bot`, e2-small, us-east4-a (Virginia), IP 34.86.131.153
+- Service path: `/home/tangmo82/polymarket_new/`
+- Arb bot: `polymarket-bot.service` (port 8000)
+- Sniper bot: `sniper.service` (port 8001, planned)
+- Env vars: `/home/tangmo82/polymarket_new/.env`
+- **Planned migration**: Move to Dublin (europe-west1) region for lower latency to Polymarket/Polygon infrastructure. Per Reddit reports, Dublin has the lowest latency to Polymarket's CLOB matching engine. Critical for sniper bot where sub-second order placement matters.

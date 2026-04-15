@@ -1,0 +1,297 @@
+INFO:     Started server process [22092]
+INFO:     Waiting for application startup.
+23:14:27 [bot.main] INFO: Database initialized at data/bot.db
+23:14:27 [bot.main] INFO: Bot mode: PAPER
+23:14:27 [bot.main] INFO: Starting capital: $100.00
+23:14:27 [bot.engine] INFO: Engine starting...
+23:14:27 [bot.orders] INFO: OrderManager initialized: balance=$100.00, pnl=$0.0000
+23:14:27 [bot.engine] INFO: Active markets: ['btc_15m', 'btc_5m', 'eth_15m', 'eth_5m', 'sol_5m']
+23:14:27 [bot.engine] INFO: New market: btc-updown-15m-1774454400
+23:14:28 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=btc-updown-15m-1774454400 "HTTP/1.1 200 OK"
+23:14:28 [bot.engine] INFO: New market: btc-updown-5m-1774455000
+23:14:28 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=btc-updown-5m-1774455000 "HTTP/1.1 200 OK"
+23:14:28 [bot.engine] INFO: New market: eth-updown-15m-1774454400
+23:14:29 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=eth-updown-15m-1774454400 "HTTP/1.1 200 OK"
+23:14:29 [bot.engine] INFO: New market: eth-updown-5m-1774455000
+23:14:30 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=eth-updown-5m-1774455000 "HTTP/1.1 200 OK"
+23:14:30 [bot.engine] INFO: New market: sol-updown-5m-1774455000
+23:14:30 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=sol-updown-5m-1774455000 "HTTP/1.1 200 OK"
+23:14:30 [bot.engine] INFO: Engine started -- 5 tasks running
+23:14:30 [bot.main] INFO: Engine auto-started
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+23:14:31 [bot.engine] INFO: Binance WS connected
+23:14:31 [bot.engine] INFO: Polymarket WS connected
+23:14:31 [bot.engine] INFO: Subscribed to 10 tokens
+INFO:     127.0.0.1:55485 - "GET /stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55490 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55504 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55506 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55515 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55522 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55524 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55527 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+23:15:00 [bot.engine] INFO: New market: btc-updown-15m-1774455300
+23:15:01 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=btc-updown-15m-1774455300 "HTTP/1.1 200 OK"
+23:15:01 [bot.engine] INFO: New market: btc-updown-5m-1774455300
+23:15:01 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=btc-updown-5m-1774455300 "HTTP/1.1 200 OK"
+23:15:01 [bot.engine] INFO: New market: eth-updown-15m-1774455300
+23:15:02 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=eth-updown-15m-1774455300 "HTTP/1.1 200 OK"
+23:15:02 [bot.engine] INFO: New market: eth-updown-5m-1774455300
+23:15:02 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=eth-updown-5m-1774455300 "HTTP/1.1 200 OK"
+23:15:02 [bot.engine] INFO: New market: sol-updown-5m-1774455300
+23:15:03 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=sol-updown-5m-1774455300 "HTTP/1.1 200 OK"
+23:15:03 [bot.engine] INFO: Market rotation detected -- reconnecting Polymarket WS
+INFO:     127.0.0.1:55536 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+23:15:07 [bot.engine] INFO: Polymarket WS connected
+23:15:07 [bot.engine] INFO: Subscribed to 10 tokens
+23:15:30 [bot.paper] INFO: Maker order placed: paper_36c3ab990e06 token=72478842..9236 price=0.520 usdc=$5.59
+23:15:30 [bot.paper] INFO: Maker order placed: paper_12aecc1e16e8 token=12085043..2903 price=0.410 usdc=$4.41
+23:15:30 [bot.orders] INFO: MAKER ORDERS placed: SOL 5m gap_bid=0.0700 yes_bid=0.520 no_bid=0.410 usdc=$10.00 maker_profit=$0.7527 (if both fill)
+23:15:33 [bot.paper] INFO: Maker order FILLED (ask=0.510 <= bid=0.520): paper_36c3ab990e06
+23:15:33 [bot.orders] INFO: YES maker FILLED for sol-updown-5m-1774455300
+23:15:33 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455300: YES maker filled, NO taker at ask=0.500 fee=0.0156 hybrid_pnl=$-0.3004 (maker_only=$0.7527)
+23:15:33 [bot.orders] INFO: Hybrid not profitable ($-0.3004 < $0.0050 threshold at 266s left), waiting
+23:15:35 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455300: YES maker filled, NO taker at ask=0.550 fee=0.0153 hybrid_pnl=$-0.8447 (maker_only=$0.7527)
+23:15:35 [bot.orders] INFO: Hybrid not profitable ($-0.8447 < $0.0050 threshold at 264s left), waiting
+23:15:37 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455300: YES maker filled, NO taker at ask=0.570 fee=0.0150 hybrid_pnl=$-1.0612 (maker_only=$0.7527)
+23:15:37 [bot.orders] INFO: Hybrid not profitable ($-1.0612 < $0.0050 threshold at 262s left), waiting
+23:15:39 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455300: YES maker filled, NO taker at ask=0.570 fee=0.0150 hybrid_pnl=$-1.0612 (maker_only=$0.7527)
+23:15:39 [bot.orders] INFO: Hybrid not profitable ($-1.0612 < $0.0050 threshold at 260s left), waiting
+23:15:41 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455300: YES maker filled, NO taker at ask=0.670 fee=0.0122 hybrid_pnl=$-2.1321 (maker_only=$0.7527)
+23:15:41 [bot.orders] INFO: Hybrid not profitable ($-2.1321 < $0.0050 threshold at 258s left), waiting
+23:15:43 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455300: YES maker filled, NO taker at ask=0.580 fee=0.0148 hybrid_pnl=$-1.1692 (maker_only=$0.7527)
+23:15:43 [bot.orders] INFO: Hybrid not profitable ($-1.1692 < $0.0050 threshold at 256s left), waiting
+23:15:45 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455300: YES maker filled, NO taker at ask=0.560 fee=0.0152 hybrid_pnl=$-0.9530 (maker_only=$0.7527)
+23:15:45 [bot.orders] INFO: Hybrid not profitable ($-0.9530 < $0.0050 threshold at 254s left), waiting
+23:15:47 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455300: YES maker filled, NO taker at ask=0.560 fee=0.0152 hybrid_pnl=$-0.9530 (maker_only=$0.7527)
+23:15:47 [bot.orders] INFO: Hybrid not profitable ($-0.9530 < $0.0050 threshold at 252s left), waiting
+23:15:49 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455300: YES maker filled, NO taker at ask=0.600 fee=0.0144 hybrid_pnl=$-1.3846 (maker_only=$0.7527)
+23:15:49 [bot.orders] INFO: Hybrid not profitable ($-1.3846 < $0.0050 threshold at 250s left), waiting
+23:15:51 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455300: YES maker filled, NO taker at ask=0.610 fee=0.0141 hybrid_pnl=$-1.4920 (maker_only=$0.7527)
+23:15:51 [bot.orders] INFO: Hybrid not profitable ($-1.4920 < $0.0050 threshold at 248s left), waiting
+23:15:53 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455300: YES maker filled, NO taker at ask=0.600 fee=0.0144 hybrid_pnl=$-1.3846 (maker_only=$0.7527)
+23:15:53 [bot.orders] INFO: Hybrid not profitable ($-1.3846 < $0.0050 threshold at 246s left), waiting
+23:15:55 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455300: YES maker filled, NO taker at ask=0.630 fee=0.0136 hybrid_pnl=$-1.7062 (maker_only=$0.7527)
+23:15:55 [bot.orders] INFO: Hybrid not profitable ($-1.7062 < $0.0050 threshold at 244s left), waiting
+23:15:57 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455300: YES maker filled, NO taker at ask=0.580 fee=0.0148 hybrid_pnl=$-1.1692 (maker_only=$0.7527)
+23:15:57 [bot.orders] INFO: Hybrid not profitable ($-1.1692 < $0.0050 threshold at 242s left), waiting
+23:15:59 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455300: YES maker filled, NO taker at ask=0.570 fee=0.0150 hybrid_pnl=$-1.0612 (maker_only=$0.7527)
+23:15:59 [bot.orders] INFO: Hybrid not profitable ($-1.0612 < $0.0050 threshold at 240s left), waiting
+23:16:01 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455300: YES maker filled, NO taker at ask=0.500 fee=0.0156 hybrid_pnl=$-0.3004 (maker_only=$0.7527)
+23:16:01 [bot.orders] INFO: Hybrid not profitable ($-0.3004 < $0.0050 threshold at 238s left), waiting
+23:16:03 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455300: YES maker filled, NO taker at ask=0.490 fee=0.0156 hybrid_pnl=$-0.1911 (maker_only=$0.7527)
+23:16:03 [bot.orders] INFO: Hybrid not profitable ($-0.1911 < $0.0050 threshold at 236s left), waiting
+INFO:     127.0.0.1:55596 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+23:16:05 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455300: YES maker filled, NO taker at ask=0.500 fee=0.0156 hybrid_pnl=$-0.3004 (maker_only=$0.7527)
+23:16:05 [bot.orders] INFO: Hybrid not profitable ($-0.3004 < $0.0050 threshold at 234s left), waiting
+23:16:07 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455300: YES maker filled, NO taker at ask=0.490 fee=0.0156 hybrid_pnl=$-0.1911 (maker_only=$0.7527)
+23:16:07 [bot.orders] INFO: Hybrid not profitable ($-0.1911 < $0.0050 threshold at 232s left), waiting
+INFO:     127.0.0.1:55599 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+23:16:09 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455300: YES maker filled, NO taker at ask=0.490 fee=0.0156 hybrid_pnl=$-0.1911 (maker_only=$0.7527)
+23:16:09 [bot.orders] INFO: Hybrid not profitable ($-0.1911 < $0.0050 threshold at 230s left), waiting
+INFO:     127.0.0.1:55601 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+23:16:11 [bot.paper] INFO: Maker order FILLED (ask=0.390 <= bid=0.410): paper_12aecc1e16e8
+23:16:11 [bot.orders] INFO: NO maker FILLED for sol-updown-5m-1774455300
+23:16:11 [bot.orders] INFO: BOTH MAKER FILLED: sol-updown-5m-1774455300 profit=$0.7527 (0% fee, pure arb)
+INFO:     127.0.0.1:55608 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55628 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+23:17:23 [bot.paper] INFO: Maker order placed: paper_16044a3b67fa token=35166540..0864 price=0.400 usdc=$3.87
+23:17:23 [bot.paper] INFO: Maker order placed: paper_75eec36d7ea0 token=77491253..8394 price=0.540 usdc=$5.13
+23:17:23 [bot.orders] INFO: MAKER ORDERS placed: ETH 5m gap_bid=0.0700 yes_bid=0.400 no_bid=0.540 usdc=$9.00 maker_profit=$0.6774 (if both fill)
+23:17:26 [bot.paper] INFO: Maker order FILLED (ask=0.540 <= bid=0.540): paper_75eec36d7ea0
+23:17:26 [bot.orders] INFO: NO maker FILLED for eth-updown-5m-1774455300
+23:17:26 [bot.orders] INFO: HYBRID eval eth-updown-5m-1774455300: NO maker filled, YES taker at ask=0.470 fee=0.0155 hybrid_pnl=$-0.0717 (maker_only=$0.6774)
+23:17:26 [bot.orders] INFO: Hybrid not profitable ($-0.0717 < $0.0050 threshold at 153s left), waiting
+23:17:28 [bot.orders] INFO: HYBRID eval eth-updown-5m-1774455300: NO maker filled, YES taker at ask=0.440 fee=0.0152 hybrid_pnl=$0.2247 (maker_only=$0.6774)
+23:17:28 [bot.paper] INFO: Taker order FILLED: paper_a6020b984054 token=35166540..0864 ask=0.440 usdc=$4.32
+23:17:28 [bot.orders] INFO: HYBRID FILLED: ETH 5m maker+YES taker profit=$0.2247 (ask=0.440 fee=0.0152)
+23:18:37 [bot.paper] INFO: Maker order placed: paper_66cc2591d79e token=64804703..5936 price=0.520 usdc=$4.53
+23:18:37 [bot.paper] INFO: Maker order placed: paper_eeb65c9a66a5 token=35538096..4316 price=0.410 usdc=$3.57
+23:18:37 [bot.orders] INFO: MAKER ORDERS placed: BTC 5m gap_bid=0.0700 yes_bid=0.520 no_bid=0.410 usdc=$8.10 maker_profit=$0.6097 (if both fill)
+23:18:38 [bot.paper] INFO: Maker order FILLED (ask=0.400 <= bid=0.410): paper_eeb65c9a66a5
+23:18:38 [bot.orders] INFO: NO maker FILLED for btc-updown-5m-1774455300
+23:18:38 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455300: NO maker filled, YES taker at ask=0.610 fee=0.0141 hybrid_pnl=$-0.2504 (maker_only=$0.6097)
+23:18:38 [bot.orders] INFO: Hybrid not profitable ($-0.2504 < $0.0000 threshold at 81s left), waiting
+23:18:40 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455300: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-3.4841 (maker_only=$0.6097)
+23:18:40 [bot.orders] INFO: Hybrid not profitable ($-3.4841 < $0.0000 threshold at 79s left), waiting
+23:18:42 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455300: NO maker filled, YES taker at ask=0.650 fee=0.0129 hybrid_pnl=$-0.5968 (maker_only=$0.6097)
+23:18:42 [bot.orders] INFO: Hybrid not profitable ($-0.5968 < $0.0000 threshold at 77s left), waiting
+23:18:44 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455300: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-3.4841 (maker_only=$0.6097)
+23:18:44 [bot.orders] INFO: Hybrid not profitable ($-3.4841 < $0.0000 threshold at 75s left), waiting
+23:18:46 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455300: NO maker filled, YES taker at ask=0.550 fee=0.0153 hybrid_pnl=$0.2739 (maker_only=$0.6097)
+23:18:46 [bot.paper] INFO: Taker order FILLED: paper_49baabbe02bb token=64804703..5936 ask=0.550 usdc=$4.86
+23:18:46 [bot.orders] INFO: HYBRID FILLED: BTC 5m maker+YES taker profit=$0.2739 (ask=0.550 fee=0.0153)
+23:19:51 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=sol-updown-5m-1774455300 "HTTP/1.1 200 OK"
+23:19:51 [bot.orders] INFO: SETTLED sol-updown-5m-1774455300 [MAKER] outcome=?: profit=$0.7527
+23:19:52 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=eth-updown-5m-1774455300 "HTTP/1.1 200 OK"
+23:19:52 [bot.orders] INFO: SETTLED eth-updown-5m-1774455300 [HYBRID] outcome=?: profit=$0.2247
+23:19:53 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=btc-updown-5m-1774455300 "HTTP/1.1 200 OK"
+23:19:53 [bot.orders] INFO: SETTLED btc-updown-5m-1774455300 [HYBRID] outcome=?: profit=$0.2739
+23:20:00 [bot.engine] INFO: New market: btc-updown-5m-1774455600
+23:20:01 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=btc-updown-5m-1774455600 "HTTP/1.1 200 OK"
+23:20:01 [bot.engine] INFO: New market: eth-updown-5m-1774455600
+23:20:01 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=eth-updown-5m-1774455600 "HTTP/1.1 200 OK"
+23:20:01 [bot.engine] INFO: New market: sol-updown-5m-1774455600
+23:20:02 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=sol-updown-5m-1774455600 "HTTP/1.1 200 OK"
+23:20:02 [bot.engine] INFO: Market rotation detected -- reconnecting Polymarket WS
+23:20:06 [bot.engine] INFO: Polymarket WS connected
+23:20:06 [bot.engine] INFO: Subscribed to 10 tokens
+23:20:17 [bot.engine] WARNING: Polymarket WS closed, reconnecting in 3s...
+23:20:21 [bot.engine] INFO: Polymarket WS connected
+23:20:21 [bot.engine] INFO: Subscribed to 10 tokens
+23:20:21 [bot.paper] INFO: Maker order placed: paper_fb8efdb9cd37 token=15781579..3257 price=0.770 usdc=$7.74
+23:20:21 [bot.paper] INFO: Maker order placed: paper_99c95b56439a token=70706018..9555 price=0.210 usdc=$2.26
+23:20:21 [bot.orders] INFO: MAKER ORDERS placed: SOL 5m gap_bid=0.0700 yes_bid=0.770 no_bid=0.210 usdc=$10.00 maker_profit=$0.7527 (if both fill)
+23:20:25 [bot.paper] INFO: Maker order FILLED (ask=0.210 <= bid=0.210): paper_99c95b56439a
+23:20:25 [bot.orders] INFO: NO maker FILLED for sol-updown-5m-1774455600
+23:20:25 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455600: NO maker filled, YES taker at ask=0.810 fee=0.0059 hybrid_pnl=$-0.2669 (maker_only=$0.7527)
+23:20:25 [bot.orders] INFO: Hybrid not profitable ($-0.2669 < $0.0050 threshold at 274s left), waiting
+23:20:27 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455600: NO maker filled, YES taker at ask=0.780 fee=0.0074 hybrid_pnl=$0.0453 (maker_only=$0.7527)
+23:20:27 [bot.paper] INFO: Taker order FILLED: paper_294387ab6aa4 token=15781579..3257 ask=0.780 usdc=$8.45
+23:20:27 [bot.orders] INFO: HYBRID FILLED: SOL 5m maker+YES taker profit=$0.0453 (ask=0.780 fee=0.0074)
+23:20:41 [bot.engine] WARNING: Polymarket WS closed, reconnecting in 3s...
+23:20:44 [bot.engine] INFO: Polymarket WS connected
+23:20:44 [bot.engine] INFO: Subscribed to 10 tokens
+23:21:39 [bot.engine] WARNING: Polymarket WS closed, reconnecting in 3s...
+23:21:43 [bot.engine] INFO: Polymarket WS connected
+23:21:43 [bot.engine] INFO: Subscribed to 10 tokens
+23:21:49 [bot.engine] WARNING: Polymarket WS closed, reconnecting in 3s...
+23:21:52 [bot.engine] INFO: Polymarket WS connected
+23:21:52 [bot.engine] INFO: Subscribed to 10 tokens
+23:22:11 [bot.engine] WARNING: Polymarket WS closed, reconnecting in 3s...
+23:22:14 [bot.engine] INFO: Polymarket WS connected
+23:22:14 [bot.engine] INFO: Subscribed to 10 tokens
+23:22:33 [bot.engine] WARNING: Polymarket WS closed, reconnecting in 3s...
+23:22:37 [bot.engine] INFO: Polymarket WS connected
+23:22:37 [bot.engine] INFO: Subscribed to 10 tokens
+23:23:09 [bot.engine] WARNING: Polymarket WS closed, reconnecting in 3s...
+INFO:     127.0.0.1:55866 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+23:23:13 [bot.engine] INFO: Polymarket WS connected
+23:23:13 [bot.engine] INFO: Subscribed to 10 tokens
+INFO:     127.0.0.1:55898 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55900 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55902 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55917 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+23:24:52 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=sol-updown-5m-1774455600 "HTTP/1.1 200 OK"
+23:24:52 [bot.orders] INFO: SETTLED sol-updown-5m-1774455600 [HYBRID] outcome=?: profit=$0.0453
+23:25:00 [bot.engine] INFO: New market: btc-updown-5m-1774455900
+23:25:00 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=btc-updown-5m-1774455900 "HTTP/1.1 200 OK"
+23:25:00 [bot.engine] INFO: New market: eth-updown-5m-1774455900
+23:25:00 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=eth-updown-5m-1774455900 "HTTP/1.1 200 OK"
+23:25:00 [bot.engine] INFO: New market: sol-updown-5m-1774455900
+23:25:01 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=sol-updown-5m-1774455900 "HTTP/1.1 200 OK"
+23:25:01 [bot.engine] INFO: Market rotation detected -- reconnecting Polymarket WS
+23:25:05 [bot.engine] INFO: Polymarket WS connected
+23:25:05 [bot.engine] INFO: Subscribed to 10 tokens
+23:25:33 [bot.paper] INFO: Maker order placed: paper_9b77eae596f4 token=58390530..5045 price=0.690 usdc=$7.84
+23:25:33 [bot.paper] INFO: Maker order placed: paper_9fc6754b5904 token=23517451..3334 price=0.190 usdc=$2.16
+23:25:33 [bot.orders] INFO: MAKER ORDERS placed: BTC 5m gap_bid=0.1200 yes_bid=0.690 no_bid=0.190 usdc=$10.00 maker_profit=$1.3636 (if both fill)
+INFO:     127.0.0.1:55958 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+23:25:42 [bot.paper] INFO: Maker order FILLED (ask=0.180 <= bid=0.190): paper_9fc6754b5904
+23:25:42 [bot.orders] INFO: NO maker FILLED for btc-updown-5m-1774455900
+23:25:42 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455900: NO maker filled, YES taker at ask=0.830 fee=0.0050 hybrid_pnl=$-0.2745 (maker_only=$1.3636)
+23:25:42 [bot.orders] INFO: Hybrid not profitable ($-0.2745 < $0.0050 threshold at 257s left), waiting
+23:25:44 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455900: NO maker filled, YES taker at ask=0.830 fee=0.0050 hybrid_pnl=$-0.2745 (maker_only=$1.3636)
+23:25:44 [bot.orders] INFO: Hybrid not profitable ($-0.2745 < $0.0050 threshold at 255s left), waiting
+23:25:46 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455900: NO maker filled, YES taker at ask=0.850 fee=0.0041 hybrid_pnl=$-0.4940 (maker_only=$1.3636)
+23:25:46 [bot.orders] INFO: Hybrid not profitable ($-0.4940 < $0.0050 threshold at 253s left), waiting
+23:25:48 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455900: NO maker filled, YES taker at ask=0.860 fee=0.0036 hybrid_pnl=$-0.6037 (maker_only=$1.3636)
+23:25:48 [bot.orders] INFO: Hybrid not profitable ($-0.6037 < $0.0050 threshold at 251s left), waiting
+INFO:     127.0.0.1:55969 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55971 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+23:25:50 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455900: NO maker filled, YES taker at ask=0.880 fee=0.0028 hybrid_pnl=$-0.8234 (maker_only=$1.3636)
+23:25:50 [bot.orders] INFO: Hybrid not profitable ($-0.8234 < $0.0050 threshold at 249s left), waiting
+23:25:52 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455900: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-2.0457 (maker_only=$1.3636)
+23:25:52 [bot.orders] INFO: Hybrid not profitable ($-2.0457 < $0.0050 threshold at 247s left), waiting
+23:25:54 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455900: NO maker filled, YES taker at ask=0.860 fee=0.0036 hybrid_pnl=$-0.6037 (maker_only=$1.3636)
+23:25:54 [bot.orders] INFO: Hybrid not profitable ($-0.6037 < $0.0050 threshold at 245s left), waiting
+23:25:56 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455900: NO maker filled, YES taker at ask=0.870 fee=0.0032 hybrid_pnl=$-0.7135 (maker_only=$1.3636)
+23:25:56 [bot.orders] INFO: Hybrid not profitable ($-0.7135 < $0.0050 threshold at 243s left), waiting
+23:25:58 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455900: NO maker filled, YES taker at ask=0.860 fee=0.0036 hybrid_pnl=$-0.6037 (maker_only=$1.3636)
+23:25:58 [bot.orders] INFO: Hybrid not profitable ($-0.6037 < $0.0050 threshold at 241s left), waiting
+INFO:     127.0.0.1:55978 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+23:26:01 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455900: NO maker filled, YES taker at ask=0.840 fee=0.0045 hybrid_pnl=$-0.3842 (maker_only=$1.3636)
+23:26:01 [bot.orders] INFO: Hybrid not profitable ($-0.3842 < $0.0050 threshold at 238s left), waiting
+23:26:03 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455900: NO maker filled, YES taker at ask=0.830 fee=0.0050 hybrid_pnl=$-0.2745 (maker_only=$1.3636)
+23:26:03 [bot.orders] INFO: Hybrid not profitable ($-0.2745 < $0.0050 threshold at 236s left), waiting
+23:26:05 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455900: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-2.0457 (maker_only=$1.3636)
+23:26:05 [bot.orders] INFO: Hybrid not profitable ($-2.0457 < $0.0050 threshold at 234s left), waiting
+23:26:07 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455900: NO maker filled, YES taker at ask=0.820 fee=0.0054 hybrid_pnl=$-0.1647 (maker_only=$1.3636)
+23:26:07 [bot.orders] INFO: Hybrid not profitable ($-0.1647 < $0.0050 threshold at 232s left), waiting
+23:26:09 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455900: NO maker filled, YES taker at ask=0.810 fee=0.0059 hybrid_pnl=$-0.0548 (maker_only=$1.3636)
+23:26:09 [bot.orders] INFO: Hybrid not profitable ($-0.0548 < $0.0050 threshold at 230s left), waiting
+23:26:11 [bot.orders] INFO: HYBRID eval btc-updown-5m-1774455900: NO maker filled, YES taker at ask=0.800 fee=0.0064 hybrid_pnl=$0.0551 (maker_only=$1.3636)
+23:26:11 [bot.paper] INFO: Taker order FILLED: paper_a6a35b579e22 token=58390530..5045 ask=0.800 usdc=$9.15
+23:26:11 [bot.orders] INFO: HYBRID FILLED: BTC 5m maker+YES taker profit=$0.0551 (ask=0.800 fee=0.0064)
+23:26:34 [bot.paper] INFO: Maker order placed: paper_161ba2526ead token=11479786..6019 price=0.750 usdc=$7.61
+23:26:34 [bot.paper] INFO: Maker order placed: paper_052632a7d22f token=22099984..5936 price=0.150 usdc=$1.52
+23:26:34 [bot.orders] INFO: MAKER ORDERS placed: SOL 5m gap_bid=0.1000 yes_bid=0.750 no_bid=0.150 usdc=$9.13 maker_profit=$1.0144 (if both fill)
+23:26:35 [bot.paper] INFO: Maker order FILLED (ask=0.130 <= bid=0.150): paper_052632a7d22f
+23:26:35 [bot.orders] INFO: NO maker FILLED for sol-updown-5m-1774455900
+23:26:35 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.890 fee=0.0024 hybrid_pnl=$-0.4274 (maker_only=$1.0144)
+23:26:35 [bot.orders] INFO: Hybrid not profitable ($-0.4274 < $0.0050 threshold at 204s left), waiting
+23:26:37 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.920 fee=0.0014 hybrid_pnl=$-0.7227 (maker_only=$1.0144)
+23:26:37 [bot.orders] INFO: Hybrid not profitable ($-0.7227 < $0.0050 threshold at 202s left), waiting
+23:26:39 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.940 fee=0.0008 hybrid_pnl=$-0.9206 (maker_only=$1.0144)
+23:26:39 [bot.orders] INFO: Hybrid not profitable ($-0.9206 < $0.0050 threshold at 200s left), waiting
+23:26:41 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.950 fee=0.0006 hybrid_pnl=$-1.0198 (maker_only=$1.0144)
+23:26:41 [bot.orders] INFO: Hybrid not profitable ($-1.0198 < $0.0050 threshold at 198s left), waiting
+23:26:43 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-1.4204 (maker_only=$1.0144)
+23:26:43 [bot.orders] INFO: Hybrid not profitable ($-1.4204 < $0.0050 threshold at 196s left), waiting
+23:26:45 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-1.4204 (maker_only=$1.0144)
+23:26:45 [bot.orders] INFO: Hybrid not profitable ($-1.4204 < $0.0050 threshold at 194s left), waiting
+23:26:47 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.970 fee=0.0002 hybrid_pnl=$-1.2194 (maker_only=$1.0144)
+23:26:47 [bot.orders] INFO: Hybrid not profitable ($-1.2194 < $0.0050 threshold at 192s left), waiting
+23:26:49 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-1.4204 (maker_only=$1.0144)
+23:26:49 [bot.orders] INFO: Hybrid not profitable ($-1.4204 < $0.0050 threshold at 190s left), waiting
+23:26:51 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.980 fee=0.0001 hybrid_pnl=$-1.3197 (maker_only=$1.0144)
+23:26:51 [bot.orders] INFO: Hybrid not profitable ($-1.3197 < $0.0050 threshold at 188s left), waiting
+23:26:53 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-1.4204 (maker_only=$1.0144)
+23:26:53 [bot.orders] INFO: Hybrid not profitable ($-1.4204 < $0.0050 threshold at 186s left), waiting
+23:26:55 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-1.4204 (maker_only=$1.0144)
+23:26:55 [bot.orders] INFO: Hybrid not profitable ($-1.4204 < $0.0050 threshold at 184s left), waiting
+23:26:57 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-1.4204 (maker_only=$1.0144)
+23:26:57 [bot.orders] INFO: Hybrid not profitable ($-1.4204 < $0.0050 threshold at 182s left), waiting
+23:26:59 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-1.4204 (maker_only=$1.0144)
+23:26:59 [bot.orders] INFO: Hybrid not profitable ($-1.4204 < $0.0050 threshold at 180s left), waiting
+23:27:01 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=1.000 fee=0.0000 hybrid_pnl=$-1.5216 (maker_only=$1.0144)
+23:27:01 [bot.orders] INFO: Hybrid not profitable ($-1.5216 < $0.0050 threshold at 178s left), waiting
+23:27:03 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=1.000 fee=0.0000 hybrid_pnl=$-1.5216 (maker_only=$1.0144)
+23:27:03 [bot.orders] INFO: Hybrid not profitable ($-1.5216 < $0.0050 threshold at 176s left), waiting
+23:27:05 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=1.000 fee=0.0000 hybrid_pnl=$-1.5216 (maker_only=$1.0144)
+23:27:05 [bot.orders] INFO: Hybrid not profitable ($-1.5216 < $0.0050 threshold at 174s left), waiting
+23:27:07 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-1.4204 (maker_only=$1.0144)
+23:27:07 [bot.orders] INFO: Hybrid not profitable ($-1.4204 < $0.0050 threshold at 172s left), waiting
+23:27:09 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.970 fee=0.0002 hybrid_pnl=$-1.2194 (maker_only=$1.0144)
+23:27:09 [bot.orders] INFO: Hybrid not profitable ($-1.2194 < $0.0050 threshold at 170s left), waiting
+23:27:11 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.970 fee=0.0002 hybrid_pnl=$-1.2194 (maker_only=$1.0144)
+23:27:11 [bot.orders] INFO: Hybrid not profitable ($-1.2194 < $0.0050 threshold at 168s left), waiting
+23:27:14 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.960 fee=0.0004 hybrid_pnl=$-1.1194 (maker_only=$1.0144)
+23:27:14 [bot.orders] INFO: Hybrid not profitable ($-1.1194 < $0.0050 threshold at 165s left), waiting
+23:27:16 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.960 fee=0.0004 hybrid_pnl=$-1.1194 (maker_only=$1.0144)
+23:27:16 [bot.orders] INFO: Hybrid not profitable ($-1.1194 < $0.0050 threshold at 163s left), waiting
+23:27:18 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.970 fee=0.0002 hybrid_pnl=$-1.2194 (maker_only=$1.0144)
+23:27:18 [bot.orders] INFO: Hybrid not profitable ($-1.2194 < $0.0050 threshold at 161s left), waiting
+23:27:20 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.980 fee=0.0001 hybrid_pnl=$-1.3197 (maker_only=$1.0144)
+23:27:20 [bot.orders] INFO: Hybrid not profitable ($-1.3197 < $0.0050 threshold at 159s left), waiting
+23:27:22 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.980 fee=0.0001 hybrid_pnl=$-1.3197 (maker_only=$1.0144)
+23:27:22 [bot.orders] INFO: Hybrid not profitable ($-1.3197 < $0.0050 threshold at 157s left), waiting
+INFO:     127.0.0.1:56013 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+23:27:24 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-1.4204 (maker_only=$1.0144)
+23:27:24 [bot.orders] INFO: Hybrid not profitable ($-1.4204 < $0.0050 threshold at 155s left), waiting
+23:27:26 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-1.4204 (maker_only=$1.0144)
+23:27:26 [bot.orders] INFO: Hybrid not profitable ($-1.4204 < $0.0050 threshold at 153s left), waiting
+23:27:28 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-1.4204 (maker_only=$1.0144)
+23:27:28 [bot.orders] INFO: Hybrid not profitable ($-1.4204 < $0.0050 threshold at 151s left), waiting
+23:27:30 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-1.4204 (maker_only=$1.0144)
+23:27:30 [bot.orders] INFO: Hybrid not profitable ($-1.4204 < $0.0050 threshold at 149s left), waiting
+23:27:32 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-1.4204 (maker_only=$1.0144)
+23:27:32 [bot.orders] INFO: Hybrid not profitable ($-1.4204 < $0.0050 threshold at 147s left), waiting
+23:27:34 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-1.4204 (maker_only=$1.0144)
+23:27:34 [bot.orders] INFO: Hybrid not profitable ($-1.4204 < $0.0050 threshold at 145s left), waiting
+23:27:36 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-1.4204 (maker_only=$1.0144)
+23:27:36 [bot.orders] INFO: Hybrid not profitable ($-1.4204 < $0.0050 threshold at 143s left), waiting
+23:27:38 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774455900: NO maker filled, YES taker at ask=0.990 fee=0.0000 hybrid_pnl=$-1.4204 (maker_only=$1.0144)
+23:27:38 [bot.orders] INFO: Hybrid not profitable ($-1.4204 < $0.0050 threshold at 141s left), waiting
+INFO:     127.0.0.1:56027 - "POST /api/v1/events HTTP/1.1" 404 Not Found

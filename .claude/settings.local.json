@@ -30,7 +30,29 @@
       "Bash(timeout 45 python -c \":*)",
       "Bash(timeout 60 python -c \":*)",
       "Bash(netstat -ano)",
-      "Bash(sqlite3 data/bot.db \".tables\")"
+      "Bash(sqlite3 data/bot.db \".tables\")",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:learn.polymarket.com)",
+      "Bash(python3 -c \":*)",
+      "Bash(curl -s \"https://data-api.polymarket.com/value?user=0x63ce342161250d705dc0b16df89036c8e5f9ba9a\")",
+      "Bash(curl -s \"https://data-api.polymarket.com/positions?user=0x63ce342161250d705dc0b16df89036c8e5f9ba9a&limit=100\")",
+      "Bash(curl -s \"https://data-api.polymarket.com/activity?user=0x63ce342161250d705dc0b16df89036c8e5f9ba9a&limit=500&type=TRADE\")",
+      "Bash(curl -s \"https://data-api.polymarket.com/activity?user=0x63ce342161250d705dc0b16df89036c8e5f9ba9a&limit=200&type=MERGE\")",
+      "Bash(curl -s \"https://data-api.polymarket.com/activity?user=0x63ce342161250d705dc0b16df89036c8e5f9ba9a&limit=200&type=REDEEM\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); print\\(f''''Total TRADE records: {len\\(data\\)}''''\\); [print\\(json.dumps\\(r\\)\\) for r in data]\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); print\\(f''''Total positions: {len\\(data\\)}''''\\); [print\\(json.dumps\\(r\\)\\) for r in data]\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); print\\(f''''Total REDEEM records: {len\\(data\\)}''''\\); [print\\(json.dumps\\(r\\)\\) for r in data]\")",
+      "Bash(python3:*)",
+      "Bash(taskkill //F //IM python.exe)",
+      "Bash(gcloud compute:*)",
+      "Bash(tar -czf polymarket-code.tar.gz src/ deploy/ requirements.txt)",
+      "Bash(cp -r src/arbitrage/*.py archive/src_research/)",
+      "Bash(rm -rf src/arbitrage)",
+      "Bash(mv mock_trader.html archive/)",
+      "Bash(mv charts/* archive/charts/)",
+      "Bash(rmdir charts:*)",
+      "Bash(mv deploy/* archive/deploy/)",
+      "Bash(rmdir deploy:*)"
     ]
   }
 }

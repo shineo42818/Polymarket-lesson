@@ -1,0 +1,117 @@
+INFO:     Started server process [5576]
+INFO:     Waiting for application startup.
+22:46:03 [bot.main] INFO: Database initialized at data/bot.db
+22:46:03 [bot.main] INFO: Bot mode: PAPER
+22:46:03 [bot.main] INFO: Starting capital: $100.00
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:53885 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53890 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53899 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53906 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53908 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53912 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53912 - "GET /api/markets HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53913 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53912 - "GET /api/trades?limit=30 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53914 - "GET /api/pnl-history?limit=500 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53913 - "GET /stream HTTP/1.1" 200 OK
+22:47:27 [bot.engine] INFO: Added market: sol_5m
+22:47:27 [bot.engine] INFO: Added market: btc_5m
+22:47:27 [bot.engine] INFO: Added market: btc_15m
+22:47:27 [bot.engine] INFO: Added market: eth_5m
+22:47:27 [bot.engine] INFO: Added market: eth_15m
+22:47:27 [bot.engine] INFO: Active markets updated: ['btc_15m', 'btc_5m', 'eth_15m', 'eth_5m', 'sol_5m']
+INFO:     127.0.0.1:53947 - "POST /api/markets HTTP/1.1" 200 OK
+22:47:27 [bot.engine] INFO: Active markets updated: ['btc_15m', 'btc_5m', 'eth_15m', 'eth_5m', 'sol_5m']
+INFO:     127.0.0.1:53947 - "POST /api/markets HTTP/1.1" 200 OK
+22:47:30 [bot.engine] INFO: Engine starting...
+22:47:30 [bot.orders] INFO: OrderManager initialized: balance=$73.07, pnl=$0.2347
+22:47:30 [bot.engine] INFO: Active markets: ['btc_15m', 'btc_5m', 'eth_15m', 'eth_5m', 'sol_5m']
+22:47:30 [bot.engine] INFO: New market: btc-updown-15m-1774453500
+INFO:     127.0.0.1:53948 - "POST /api/start HTTP/1.1" 200 OK
+22:47:31 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=btc-updown-15m-1774453500 "HTTP/1.1 200 OK"
+22:47:31 [bot.engine] INFO: New market: btc-updown-5m-1774453500
+22:47:32 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=btc-updown-5m-1774453500 "HTTP/1.1 200 OK"
+22:47:32 [bot.engine] INFO: New market: eth-updown-15m-1774453500
+22:47:32 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=eth-updown-15m-1774453500 "HTTP/1.1 200 OK"
+22:47:32 [bot.engine] INFO: New market: eth-updown-5m-1774453500
+22:47:33 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=eth-updown-5m-1774453500 "HTTP/1.1 200 OK"
+22:47:33 [bot.engine] INFO: New market: sol-updown-5m-1774453500
+22:47:34 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=sol-updown-5m-1774453500 "HTTP/1.1 200 OK"
+22:47:34 [bot.engine] INFO: Engine started -- 5 tasks running
+INFO:     127.0.0.1:53947 - "POST /api/start HTTP/1.1" 200 OK
+22:47:34 [bot.engine] INFO: Binance WS connected
+22:47:34 [bot.engine] INFO: Polymarket WS connected
+22:47:34 [bot.engine] INFO: Subscribed to 10 tokens
+INFO:     127.0.0.1:53989 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+22:48:18 [bot.paper] INFO: Maker order placed: paper_79a4ee941e4d token=40376004..5512 price=0.350 usdc=$2.33
+22:48:18 [bot.paper] INFO: Maker order placed: paper_d3431a986214 token=88242847..5394 price=0.620 usdc=$4.98
+22:48:18 [bot.orders] INFO: MAKER ORDERS placed: ETH 5m gap_bid=0.0900 yes_bid=0.350 no_bid=0.620 usdc=$7.31 maker_profit=$0.7227 (if both fill)
+22:48:20 [bot.paper] INFO: Maker order FILLED (ask=0.520 <= bid=0.620): paper_d3431a986214
+22:48:20 [bot.orders] INFO: NO maker FILLED for eth-updown-5m-1774453500
+22:48:20 [bot.orders] INFO: HYBRID eval eth-updown-5m-1774453500: NO maker filled, YES taker at ask=0.490 fee=0.0156 hybrid_pnl=$-0.9457 (maker_only=$0.7227)
+22:48:20 [bot.orders] INFO: Hybrid not profitable ($-0.9457 < $0.0000 threshold at 99s left), waiting
+22:48:20 [bot.paper] INFO: Maker order placed: paper_9c5e334daea4 token=72393499..6507 price=0.400 usdc=$2.86
+22:48:20 [bot.paper] INFO: Maker order placed: paper_a20f3170ca9d token=10498348..9581 price=0.520 usdc=$3.72
+22:48:20 [bot.orders] INFO: MAKER ORDERS placed: SOL 5m gap_bid=0.0800 yes_bid=0.400 no_bid=0.520 usdc=$6.58 maker_profit=$0.5719 (if both fill)
+22:48:21 [bot.paper] INFO: Maker order placed: paper_79d04da10549 token=64180464..1536 price=0.470 usdc=$2.74
+22:48:21 [bot.paper] INFO: Maker order placed: paper_9bc8e0b24253 token=26863926..0871 price=0.500 usdc=$3.18
+22:48:21 [bot.orders] INFO: MAKER ORDERS placed: ETH 15m gap_bid=0.0700 yes_bid=0.470 no_bid=0.500 usdc=$5.92 maker_profit=$0.4455 (if both fill)
+22:48:22 [bot.orders] INFO: HYBRID eval eth-updown-5m-1774453500: NO maker filled, YES taker at ask=0.490 fee=0.0156 hybrid_pnl=$-0.9457 (maker_only=$0.7227)
+22:48:22 [bot.orders] INFO: Hybrid not profitable ($-0.9457 < $0.0000 threshold at 97s left), waiting
+22:48:22 [bot.paper] INFO: Maker order FILLED (ask=0.520 <= bid=0.520): paper_a20f3170ca9d
+22:48:22 [bot.orders] INFO: NO maker FILLED for sol-updown-5m-1774453500
+22:48:22 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774453500: NO maker filled, YES taker at ask=0.490 fee=0.0156 hybrid_pnl=$-0.1270 (maker_only=$0.5719)
+22:48:22 [bot.orders] INFO: Hybrid not profitable ($-0.1270 < $0.0000 threshold at 97s left), waiting
+22:48:24 [bot.orders] INFO: HYBRID eval eth-updown-5m-1774453500: NO maker filled, YES taker at ask=0.420 fee=0.0148 hybrid_pnl=$-0.3720 (maker_only=$0.7227)
+22:48:24 [bot.orders] INFO: Hybrid not profitable ($-0.3720 < $0.0000 threshold at 95s left), waiting
+22:48:24 [bot.orders] INFO: HYBRID eval sol-updown-5m-1774453500: NO maker filled, YES taker at ask=0.440 fee=0.0152 hybrid_pnl=$0.2375 (maker_only=$0.5719)
+22:48:24 [bot.paper] INFO: Taker order FILLED: paper_fd54c595644e token=72393499..6507 ask=0.440 usdc=$3.19
+22:48:24 [bot.orders] INFO: HYBRID FILLED: SOL 5m maker+YES taker profit=$0.2375 (ask=0.440 fee=0.0152)
+22:48:26 [bot.orders] INFO: HYBRID eval eth-updown-5m-1774453500: NO maker filled, YES taker at ask=0.360 fee=0.0133 hybrid_pnl=$0.1217 (maker_only=$0.7227)
+22:48:26 [bot.paper] INFO: Taker order FILLED: paper_24be586de741 token=40376004..5512 ask=0.360 usdc=$2.93
+22:48:26 [bot.orders] INFO: HYBRID FILLED: ETH 5m maker+YES taker profit=$0.1217 (ask=0.360 fee=0.0133)
+22:48:28 [bot.paper] INFO: Maker order FILLED (ask=0.470 <= bid=0.470): paper_79d04da10549
+22:48:28 [bot.orders] INFO: YES maker FILLED for eth-updown-15m-1774453500
+22:48:28 [bot.orders] INFO: HYBRID eval eth-updown-15m-1774453500: YES maker filled, NO taker at ask=0.540 fee=0.0154 hybrid_pnl=$0.1371 (maker_only=$0.4455)
+22:48:28 [bot.paper] INFO: Taker order FILLED: paper_de03730e7bf5 token=26863926..0871 ask=0.540 usdc=$3.49
+22:48:28 [bot.orders] INFO: HYBRID FILLED: ETH 15m maker+NO taker profit=$0.1371 (ask=0.540 fee=0.0154)
+22:49:51 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=eth-updown-5m-1774453500 "HTTP/1.1 200 OK"
+22:49:51 [bot.orders] INFO: SETTLED eth-updown-5m-1774453500 [HYBRID] outcome=?: profit=$0.1217
+22:49:52 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=sol-updown-5m-1774453500 "HTTP/1.1 200 OK"
+22:49:52 [bot.orders] INFO: SETTLED sol-updown-5m-1774453500 [HYBRID] outcome=?: profit=$0.2375
+INFO:     127.0.0.1:54093 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+22:50:00 [bot.engine] INFO: New market: btc-updown-5m-1774453800
+22:50:01 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=btc-updown-5m-1774453800 "HTTP/1.1 200 OK"
+22:50:01 [bot.engine] INFO: New market: eth-updown-5m-1774453800
+22:50:02 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=eth-updown-5m-1774453800 "HTTP/1.1 200 OK"
+22:50:02 [bot.engine] INFO: New market: sol-updown-5m-1774453800
+22:50:02 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=sol-updown-5m-1774453800 "HTTP/1.1 200 OK"
+22:50:02 [bot.engine] INFO: Market rotation detected -- reconnecting Polymarket WS
+INFO:     127.0.0.1:54098 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+22:50:04 [bot.engine] INFO: Engine stopping...
+INFO:     127.0.0.1:54110 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+22:50:08 [httpx] INFO: HTTP Request: GET https://gamma-api.polymarket.com/markets?slug=eth-updown-15m-1774453500 "HTTP/1.1 200 OK"
+22:50:08 [bot.orders] INFO: SETTLED eth-updown-15m-1774453500 [HYBRID] outcome=?: profit=$0.1371
+22:50:08 [bot.main] INFO: Archived DB to data/bot_archive_2026-03-25_15-50-08.db
+22:50:08 [bot.orders] INFO: Paper trading reset: balance=$100.00
+INFO:     127.0.0.1:54119 - "POST /api/reset HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54127 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54129 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54106 - "POST /api/stop HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54156 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54158 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54181 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54184 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54187 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54189 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54191 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54193 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54219 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54333 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54344 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54369 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54672 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54680 - "POST /api/v1/events HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54687 - "POST /api/v1/events HTTP/1.1" 404 Not Found
